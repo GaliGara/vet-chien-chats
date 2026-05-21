@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { AdminDashboard } from "@/components/admin/admin-dashboard";
 
 export const metadata: Metadata = {
-  title: "Admin | Chiens & Chats",
+  title: "Admin | Chiens et Chats",
 };
 
 export default function AdminPage() {

@@ -4,8 +4,8 @@ import { Footer } from "@/components/landing/footer";
 import { Navbar } from "@/components/landing/navbar";
 
 export const metadata: Metadata = {
-  title: "Adopciones | Chiens & Chats",
-  description: "Conoce mascotas disponibles para adopcion.",
+  title: "Adopciones | Chiens et Chats",
+  description: "Conoce mascotas disponibles para adopción.",
 };
 
 export default function AdopcionesPage() {

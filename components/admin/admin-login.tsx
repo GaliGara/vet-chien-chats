@@ -28,14 +28,14 @@ export function AdminLogin() {
     setIsLoading(false);
 
     if (error) {
-      toast.error("No pudimos iniciar sesion", {
+      toast.error("No pudimos iniciar sesión", {
         description: error.message,
       });
       return;
     }
 
     window.localStorage.removeItem("admin-preview");
-    toast.success("Sesion iniciada");
+    toast.success("Sesión iniciada");
     router.push("/admin");
   }
 

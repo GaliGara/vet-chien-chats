@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, Heart } from "lucide-react";
+import { brand } from "@/constants/site";
 import { Button } from "@/components/ui/button";
 import { AnimatedSection } from "@/components/landing/animated-section";
 
@@ -14,8 +15,8 @@ export function FinalCta() {
           Empecemos con una experiencia clara, sensible y muy cuidada.
         </h2>
         <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-[#7B6A80] sm:text-lg">
-          Reserva una cita o explora adopciones disponibles. El siguiente paso
-          puede sentirse sencillo, sereno y acompañado.
+          Reserva en {brand.name} o explora adopciones disponibles. El
+          siguiente paso puede sentirse sencillo, sereno y acompañado.
         </p>
         <Button
           asChild

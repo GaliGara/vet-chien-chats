@@ -27,7 +27,7 @@ function handleQueryError(context: string, error: unknown, options?: QueryOption
 
 export async function createAppointment(input: AppointmentInsert) {
   if (!isSupabaseConfigured) {
-    throw new Error("Supabase no esta configurado.");
+    throw new Error("Supabase no está configurado.");
   }
 
   const { data, error } = await supabase
@@ -61,7 +61,7 @@ export async function updateAppointmentStatus(
   status: AppointmentStatus
 ) {
   if (!isSupabaseConfigured) {
-    throw new Error("Supabase no esta configurado.");
+    throw new Error("Supabase no está configurado.");
   }
 
   const { data, error } = await supabase
@@ -99,7 +99,7 @@ export async function getPetsForAdoption(status?: string, options?: QueryOptions
 
 export async function createPetForAdoption(input: PetForAdoptionInput) {
   if (!isSupabaseConfigured) {
-    throw new Error("Supabase no esta configurado.");
+    throw new Error("Supabase no está configurado.");
   }
 
   const { data, error } = await supabase
@@ -117,7 +117,7 @@ export async function updatePetForAdoption(
   input: Partial<PetForAdoptionInput>
 ) {
   if (!isSupabaseConfigured) {
-    throw new Error("Supabase no esta configurado.");
+    throw new Error("Supabase no está configurado.");
   }
 
   const { data, error } = await supabase
@@ -133,7 +133,7 @@ export async function updatePetForAdoption(
 
 export async function deletePetForAdoption(id: string) {
   if (!isSupabaseConfigured) {
-    throw new Error("Supabase no esta configurado.");
+    throw new Error("Supabase no está configurado.");
   }
 
   const { error } = await supabase.from("pets_for_adoption").delete().eq("id", id);
@@ -197,7 +197,7 @@ export async function getAdminStats(): Promise<AdminStats> {
 
   results.forEach((result, index) => {
     if (result.error) {
-      reportSupabaseError(`No se pudo calcular estadistica ${index + 1}.`, result.error);
+      reportSupabaseError(`No se pudo calcular estadística ${index + 1}.`, result.error);
     }
   });
 

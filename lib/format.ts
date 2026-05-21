@@ -42,7 +42,7 @@ export function buildWhatsAppUrl(phone?: string | null, message?: string) {
     normalizePhoneNumber(process.env.NEXT_PUBLIC_WHATSAPP_NUMBER);
   const encodedMessage = encodeURIComponent(
     message ??
-      "Hola, quiero recibir informacion sobre citas y adopciones en Chiens & Chats."
+      "Hola, quiero recibir información sobre citas y adopciones en Chiens et Chats."
   );
 
   return target

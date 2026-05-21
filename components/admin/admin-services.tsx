@@ -55,7 +55,7 @@ export function AdminServices() {
   return (
     <AdminShell
       title="Servicios"
-      description="Vista ligera de servicios activos. Esta base queda lista para convertirla en CRUD si quieres administrarlos desde el panel."
+      description="Consulta servicios veterinarios activos y fallback de Chiens et Chats para citas, estética, prevención y adopciones."
     >
       <div className="mb-5 flex justify-end">
         <Button
@@ -117,7 +117,7 @@ export function AdminServices() {
       ) : (
         <AdminNotice
           title="Sin servicios configurados"
-          text="Agrega servicios en Supabase para mostrarlos aqui y en la landing."
+          text="Agrega servicios en Supabase para mostrarlos aquí y en la landing."
         />
       )}
     </AdminShell>

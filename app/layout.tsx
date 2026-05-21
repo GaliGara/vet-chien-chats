@@ -16,9 +16,9 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: "Chiens & Chats | Citas y adopciones con cuidado premium",
+  title: "Chiens et Chats | Veterinaria boutique y adopciones",
   description:
-    "Reserva citas, conoce adopciones disponibles y recibe acompañamiento humano en cada paso.",
+    "Reserva citas veterinarias, estética canina, vacunación y procesos de adopción con cuidado humano.",
 };
 
 export default function RootLayout({

@@ -6,7 +6,7 @@ type SupabaseLikeError = {
 
 export function getSupabaseErrorMessage(error: unknown) {
   const fallback =
-    "No pudimos completar la accion. Revisa tu conexion o la configuracion de Supabase.";
+    "No pudimos completar la acción. Revisa tu conexión o la configuración de Supabase.";
 
   if (!error || typeof error !== "object") return fallback;
 

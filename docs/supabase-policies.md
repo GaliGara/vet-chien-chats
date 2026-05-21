@@ -80,7 +80,19 @@ create table if not exists public.services (
 );
 ```
 
-## RLS basico
+### Servicios iniciales sugeridos
+
+```sql
+insert into public.services (name, description, duration_minutes, status, icon)
+values
+  ('Consulta médica veterinaria', 'Valoración clínica para perros y gatos con trato sereno.', 45, 'activo', 'stethoscope'),
+  ('Estética canina, baño y cuidado', 'Baño, corte y cuidado de piel y pelaje con mucha delicadeza.', 90, 'activo', 'bath'),
+  ('Vacunación', 'Aplicación y seguimiento de esquemas preventivos.', 30, 'activo', 'syringe'),
+  ('Desparasitación', 'Cuidado preventivo para bienestar y tranquilidad en casa.', 25, 'activo', 'heart-pulse'),
+  ('Acompañamiento en adopciones', 'Proceso responsable, humano y guiado de principio a fin.', 60, 'activo', 'paw');
+```
+
+## RLS básico
 
 Este bloque permite:
 
@@ -91,7 +103,7 @@ Este bloque permite:
 5. crear/editar/eliminar adopciones con usuario autenticado
 
 Importante: estas policies tratan a cualquier usuario autenticado como admin.
-Para produccion, agrega una tabla de perfiles/roles o allowlist.
+Para producción, agrega una tabla de perfiles/roles o allowlist.
 
 ```sql
 alter table public.appointments enable row level security;
@@ -176,7 +188,7 @@ using (true);
 
 ## Opcion mas segura para admin
 
-Antes de produccion, puedes crear una tabla `admin_users` y reemplazar las
+Antes de producción, puedes crear una tabla `admin_users` y reemplazar las
 policies autenticadas por checks de admin:
 
 ```sql

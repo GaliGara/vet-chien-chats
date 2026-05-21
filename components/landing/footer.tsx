@@ -14,8 +14,8 @@ export function Footer() {
             {brand.name}
           </Link>
           <p className="mt-4 max-w-md text-sm leading-7 text-[#7B6A80]">
-            Reservacion de citas y procesos de adopcion con una experiencia
-            premium, calida y profundamente humana.
+            Veterinaria boutique para consulta, estética, prevención y
+            adopciones responsables con una experiencia cálida y humana.
           </p>
         </div>
         <div>
@@ -53,7 +53,7 @@ export function Footer() {
             </span>
             <span className="flex items-center gap-2">
               <AtSign className="size-4 text-[#5B3A63]" />
-              @chienschats
+              {brand.social}
             </span>
           </div>
         </div>

@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import {
   appointmentStatusLabels,
   appointmentStatusOptions,
+  brand,
 } from "@/constants/site";
 import type { Appointment, AppointmentStatus } from "@/types/database";
 import {
@@ -101,7 +102,7 @@ export function AdminAppointments() {
   return (
     <AdminShell
       title="Citas"
-      description="Gestiona solicitudes como cards legibles desde celular, filtra por estado y confirma avances rapidamente."
+      description="Gestiona solicitudes como cards legibles desde celular, filtra por estado y confirma avances rápidamente."
     >
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex gap-2 overflow-x-auto pb-1">
@@ -160,7 +161,7 @@ export function AdminAppointments() {
       ) : (
         <AdminNotice
           title="Sin citas por ahora"
-          text="Cuando llegue una solicitud desde el formulario, aparecera aqui como tarjeta lista para gestionar."
+          text="Cuando llegue una solicitud desde el formulario, aparecerá aquí como tarjeta lista para gestionar."
         />
       )}
     </AdminShell>
@@ -176,7 +177,7 @@ function AppointmentCard({
   updating: boolean;
   onStatusChange: (id: string, status: AppointmentStatus) => void;
 }) {
-  const whatsappMessage = `Hola ${appointment.client_name}, te contactamos de Chiens & Chats sobre tu cita para ${appointment.pet_name} el ${appointment.preferred_date} a las ${appointment.preferred_time}.`;
+  const whatsappMessage = `Hola ${appointment.client_name}, te contactamos de ${brand.name} sobre tu cita para ${appointment.pet_name} el ${appointment.preferred_date} a las ${appointment.preferred_time}. Servicio: ${appointment.service}.`;
   const phoneHref = buildPhoneHref(appointment.phone);
 
   return (

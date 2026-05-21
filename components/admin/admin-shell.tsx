@@ -87,7 +87,7 @@ export function AdminShell({ title, description, children }: AdminShellProps) {
           <div className="flex items-center gap-2">
             {isPreview ? (
               <span className="rounded-full border border-[#D9C6E8] bg-[#F7F1FA] px-3 py-1 text-xs font-semibold text-[#5B3A63]">
-                Revision local
+                Revisión local
               </span>
             ) : null}
             {hasAccess ? (
@@ -152,15 +152,15 @@ export function AdminShell({ title, description, children }: AdminShellProps) {
               Acceso admin
             </h1>
             <p className="mt-3 text-sm leading-7 text-[#7B6A80]">
-              Inicia sesion con Supabase Auth. Si aun no configuraste usuarios,
-              puedes abrir una revision local para validar la interfaz.
+              Inicia sesión con Supabase Auth. Si aún no configuraste usuarios,
+              puedes abrir una revisión local para validar la interfaz.
             </p>
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
               <Button
                 asChild
                 className="h-12 rounded-full bg-[#A7353F] text-[#FFFDFB] hover:bg-[#8E2D36]"
               >
-                <Link href="/admin/login">Iniciar sesion</Link>
+                <Link href="/admin/login">Iniciar sesión</Link>
               </Button>
               <Button
                 type="button"
@@ -168,7 +168,7 @@ export function AdminShell({ title, description, children }: AdminShellProps) {
                 onClick={continuePreview}
                 className="h-12 rounded-full border-[#E8D6DE] text-[#5B3A63] hover:bg-[#FFF6F8]"
               >
-                Revision local
+                Revisión local
               </Button>
             </div>
           </div>
@@ -178,7 +178,7 @@ export function AdminShell({ title, description, children }: AdminShellProps) {
       {hasAccess ? (
         <nav
           className="fixed inset-x-0 bottom-0 z-40 border-t border-[#E8D6DE] bg-[#FFFDFB]/94 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-18px_40px_rgb(91_58_99/0.10)] backdrop-blur-xl sm:hidden"
-          aria-label="Admin movil"
+          aria-label="Admin móvil"
         >
           <AdminNav pathname={pathname} compact />
         </nav>

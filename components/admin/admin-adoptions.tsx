@@ -3,10 +3,9 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useEffect, useMemo, useState } from "react";
-import { Edit3, Loader2, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { Cat, Dog, Edit3, Loader2, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
-  adoptionFallbackImage,
   petStatusLabels,
   petStatusOptions,
 } from "@/constants/site";
@@ -119,7 +118,7 @@ export function AdminAdoptions() {
 
   async function handleDelete(pet: PetForAdoption) {
     const confirmed = window.confirm(
-      `Eliminar el perfil de ${pet.name}? Esta accion no se puede deshacer.`
+      `¿Eliminar el perfil de ${pet.name}? Esta acción no se puede deshacer.`
     );
 
     if (!confirmed) return;
@@ -152,7 +151,7 @@ export function AdminAdoptions() {
   return (
     <AdminShell
       title="Adopciones"
-      description="Crea, edita y mantiene perfiles visuales para mascotas en adopcion, con estados faciles de cambiar desde el celular."
+      description="Crea, edita y mantiene perfiles visuales para mascotas en adopción, con estados fáciles de cambiar desde el celular."
     >
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex gap-2 overflow-x-auto pb-1">
@@ -197,7 +196,7 @@ export function AdminAdoptions() {
             <DialogContent className="max-h-[88svh] overflow-y-auto rounded-[2rem] border-[#E8D6DE] bg-[#FFFDFB] sm:max-w-2xl">
               <DialogHeader>
                 <DialogTitle className="font-heading text-3xl text-[#2F2433]">
-                  {editingPet ? "Editar adopcion" : "Nueva adopcion"}
+                  {editingPet ? "Editar adopción" : "Nueva adopción"}
                 </DialogTitle>
               </DialogHeader>
               <PetForm
@@ -271,14 +270,7 @@ function PetAdminCard({
   return (
     <article className="overflow-hidden rounded-[1.75rem] border border-[#E8D6DE] bg-white shadow-[0_16px_44px_rgb(91_58_99/0.07)]">
       <div className="relative aspect-[5/3] bg-[#F7F1FA]">
-        <img
-          src={pet.image_url || adoptionFallbackImage}
-          alt={`Foto de ${pet.name}`}
-          onError={(event) => {
-            event.currentTarget.src = adoptionFallbackImage;
-          }}
-          className="h-full w-full object-cover"
-        />
+        <PetAdminMedia pet={pet} />
         <div className="absolute left-4 top-4">
           <PetStatusBadge status={pet.status} />
         </div>
@@ -322,11 +314,11 @@ function PetAdminCard({
         </div>
 
         <p className="mt-4 text-sm leading-7 text-[#7B6A80]">
-          {pet.short_description ?? pet.description ?? "Sin descripcion breve."}
+          {pet.short_description ?? pet.description ?? "Sin descripción breve."}
         </p>
 
         <select
-          aria-label={`Cambiar status de adopcion de ${pet.name}`}
+          aria-label={`Cambiar status de adopción de ${pet.name}`}
           value={pet.status}
           onChange={(event) =>
             onStatusChange(pet, event.target.value as PetAdoptionStatus)
@@ -341,6 +333,32 @@ function PetAdminCard({
         </select>
       </div>
     </article>
+  );
+}
+
+function PetAdminMedia({ pet }: { pet: PetForAdoption }) {
+  const [hasImage, setHasImage] = useState(Boolean(pet.image_url));
+
+  if (hasImage && pet.image_url) {
+    return (
+      <img
+        src={pet.image_url}
+        alt={`Foto de ${pet.name}`}
+        onError={() => setHasImage(false)}
+        className="h-full w-full object-cover"
+      />
+    );
+  }
+
+  const Icon = pet.species.toLowerCase().includes("gato") ? Cat : Dog;
+
+  return (
+    <div className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,#F7F1FA_0%,#FFFDFB_52%,#FFF6F8_100%)]">
+      <div className="rounded-[1.5rem] border border-white/80 bg-white/60 p-5 text-center shadow-xl backdrop-blur">
+        <Icon className="mx-auto size-10 text-[#A7353F]" />
+        <p className="mt-3 font-heading text-2xl text-[#2F2433]">{pet.name}</p>
+      </div>
+    </div>
   );
 }
 
@@ -396,7 +414,7 @@ function PetForm({
       const savedPet = pet
         ? await updatePetForAdoption(pet.id, payload)
         : await createPetForAdoption(payload);
-      toast.success(pet ? "Adopcion actualizada" : "Adopcion creada");
+      toast.success(pet ? "Adopción actualizada" : "Adopción creada");
       onSaved(savedPet);
     } catch (error) {
       toast.error("No se pudo guardar", {
@@ -442,7 +460,7 @@ function PetForm({
             Status
           </span>
           <select
-            aria-label="Status de adopcion"
+            aria-label="Status de adopción"
             value={form.status}
             onChange={(event) =>
               updateField("status", event.target.value as PetAdoptionStatus)
@@ -482,7 +500,7 @@ function PetForm({
         className="h-12 rounded-full bg-[#A7353F] text-[#FFFDFB] hover:bg-[#8E2D36]"
       >
         {isSaving ? <Loader2 className="size-4 animate-spin" /> : null}
-        {pet ? "Guardar cambios" : "Crear adopcion"}
+        {pet ? "Guardar cambios" : "Crear adopción"}
       </Button>
     </form>
   );

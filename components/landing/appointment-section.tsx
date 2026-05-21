@@ -13,22 +13,22 @@ export function AppointmentSection() {
         <div className="lg:sticky lg:top-24">
           <SectionHeading
             eyebrow="Citas"
-            title="Reserva sin friccion, confirma con calma."
-            description="El formulario inserta solicitudes en Supabase usando el cliente publico. Cada cita entra como nueva para que puedas gestionarla desde admin."
+            title="Reserva sin fricción, confirma con calma."
+            description="Agenda consulta, baño, corte, vacunación, desparasitación o seguimiento de adopción. Te respondemos con claridad y trato cercano."
           />
           <div className="mt-8 grid gap-3">
             {[
               {
                 icon: CheckCircle2,
-                text: "Solicitud guardada como nueva para seguimiento admin.",
+                text: "Elige el servicio, fecha y horario que mejor funcionen para ti.",
               },
               {
                 icon: MessageCircleHeart,
-                text: "WhatsApp queda listo con los datos que compartiste.",
+                text: "WhatsApp queda listo con el resumen para continuar la conversación.",
               },
               {
                 icon: ShieldCheck,
-                text: "Sin llaves secretas: solo cliente publico de Supabase.",
+                text: "Tu solicitud entra como nueva para recibir confirmación humana.",
               },
             ].map((item) => {
               const Icon = item.icon;

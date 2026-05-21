@@ -4,13 +4,18 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ArrowRight, Heart, PawPrint } from "lucide-react";
-import { adoptionFallbackImage, petStatusLabels } from "@/constants/site";
+import { ArrowRight, Cat, Dog, Heart, PawPrint } from "lucide-react";
+import { petStatusLabels } from "@/constants/site";
 import type { PetForAdoption } from "@/types/database";
 import { getPetsForAdoption } from "@/lib/supabase-queries";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AnimatedSection, MotionCard } from "@/components/landing/animated-section";
+import {
+  AnimatedSection,
+  MotionCard,
+  StaggerContainer,
+  StaggerItem,
+} from "@/components/landing/animated-section";
 import { SectionHeading } from "@/components/landing/section-heading";
 
 export function AdoptionsSection({ fullPage = false }: { fullPage?: boolean }) {
@@ -42,8 +47,8 @@ export function AdoptionsSection({ fullPage = false }: { fullPage?: boolean }) {
         <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
           <SectionHeading
             eyebrow="Adopciones"
-            title="Historias listas para encontrar un hogar amoroso."
-            description="Perfiles conectados a Supabase para que puedas mantener la seccion viva desde el panel admin."
+            title="Historias que esperan un hogar."
+            description="Conoce perros y gatos disponibles para adopción responsable. Te acompañamos para que cada adopción sea segura y amorosa."
           />
           {!fullPage ? (
             <Button
@@ -69,22 +74,24 @@ export function AdoptionsSection({ fullPage = false }: { fullPage?: boolean }) {
             ))}
           </div>
         ) : pets.length > 0 ? (
-          <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+          <StaggerContainer className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
             {(fullPage ? pets : pets.slice(0, 3)).map((pet) => (
-              <PetCard key={pet.id} pet={pet} />
+              <StaggerItem key={pet.id}>
+                <PetCard pet={pet} />
+              </StaggerItem>
             ))}
-          </div>
+          </StaggerContainer>
         ) : (
           <div className="mt-10 rounded-[2rem] border border-dashed border-[#D9C6E8] bg-[#F7F1FA]/70 p-8 text-center">
             <span className="mx-auto grid size-14 place-items-center rounded-full bg-white text-[#A7353F]">
               <PawPrint className="size-7" />
             </span>
             <h3 className="mt-5 font-heading text-3xl text-[#2F2433]">
-              Aun no hay adopciones publicadas
+              Aún no hay historias publicadas
             </h3>
             <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-[#7B6A80]">
-              Cuando agregues mascotas en Supabase o desde el panel admin, se
-              mostraran aqui con tarjetas visuales y estado actualizado.
+              Cuando agregues perros o gatos disponibles en Supabase, se
+              mostrarán aquí con una ficha clara, emocional y confiable.
             </p>
           </div>
         )}
@@ -98,14 +105,7 @@ export function PetCard({ pet }: { pet: PetForAdoption }) {
     <MotionCard>
       <article className="h-full overflow-hidden rounded-[1.75rem] border border-[#E8D6DE] bg-white shadow-[0_18px_50px_rgb(91_58_99/0.09)]">
         <div className="relative aspect-[4/3] overflow-hidden bg-[#F7F1FA]">
-          <img
-            src={pet.image_url || adoptionFallbackImage}
-            alt={`Foto de ${pet.name}`}
-            onError={(event) => {
-              event.currentTarget.src = adoptionFallbackImage;
-            }}
-            className="h-full w-full object-cover"
-          />
+          <PetMedia pet={pet} />
           <div className="absolute left-4 top-4">
             <Badge className="rounded-full bg-white/88 px-3 py-1 text-[#5B3A63] shadow-sm backdrop-blur">
               {petStatusLabels[pet.status] ?? pet.status}
@@ -142,10 +142,39 @@ export function PetCard({ pet }: { pet: PetForAdoption }) {
           <p className="mt-4 line-clamp-3 text-sm leading-7 text-[#7B6A80]">
             {pet.short_description ??
               pet.description ??
-              "Perfil en preparacion con acompanamiento para encontrar la familia ideal."}
+              "Perfil en preparación con acompañamiento para encontrar la familia ideal."}
           </p>
         </div>
       </article>
     </MotionCard>
+  );
+}
+
+function PetMedia({ pet }: { pet: PetForAdoption }) {
+  const [hasImage, setHasImage] = useState(Boolean(pet.image_url));
+
+  if (hasImage && pet.image_url) {
+    return (
+      <img
+        src={pet.image_url}
+        alt={`Foto de ${pet.name}`}
+        onError={() => setHasImage(false)}
+        className="h-full w-full object-cover"
+      />
+    );
+  }
+
+  const Icon = pet.species.toLowerCase().includes("gato") ? Cat : Dog;
+
+  return (
+    <div className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,#F7F1FA_0%,#FFFDFB_52%,#FFF6F8_100%)]">
+      <div className="rounded-[2rem] border border-white/80 bg-white/55 p-6 text-center shadow-xl backdrop-blur">
+        <Icon className="mx-auto size-12 text-[#A7353F]" />
+        <p className="mt-4 font-heading text-2xl text-[#2F2433]">{pet.name}</p>
+        <p className="mt-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#7B6A80]">
+          Chiens et Chats
+        </p>
+      </div>
+    </div>
   );
 }

@@ -6,6 +6,7 @@ import { CalendarDays, Loader2, MessageCircle, Send } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
+import { appointmentServiceOptions, brand } from "@/constants/site";
 import { createAppointment } from "@/lib/supabase-queries";
 import { getSupabaseErrorMessage } from "@/lib/supabase-errors";
 import { buildWhatsAppUrl } from "@/lib/format";
@@ -19,7 +20,7 @@ const appointmentSchema = z.object({
   phone: z
     .string()
     .trim()
-    .min(8, "Agrega un telefono valido.")
+    .min(8, "Agrega un teléfono válido.")
     .regex(/^[+()\d\s-]+$/, "Usa solo numeros, espacios o +."),
   email: z
     .union([z.string().email("Agrega un email valido."), z.literal("")])
@@ -67,7 +68,7 @@ export function AppointmentForm() {
 
   const whatsappUrl = useMemo(() => {
     const message = [
-      "Hola, quiero reservar una cita en Chiens & Chats.",
+      `Hola, quiero reservar una cita en ${brand.name}.`,
       watchedValues.client_name ? `Mi nombre es ${watchedValues.client_name}.` : "",
       watchedValues.pet_name ? `Mi mascota se llama ${watchedValues.pet_name}.` : "",
       watchedValues.service ? `Servicio: ${watchedValues.service}.` : "",
@@ -90,7 +91,7 @@ export function AppointmentForm() {
     const followUpWhatsAppUrl = buildWhatsAppUrl(
       undefined,
       [
-        "Hola, acabo de enviar mi solicitud de cita en Chiens & Chats.",
+        `Hola, acabo de enviar mi solicitud de cita en ${brand.name}.`,
         `Mi nombre es ${values.client_name}.`,
         `Mi mascota se llama ${values.pet_name}.`,
         `Servicio: ${values.service}.`,
@@ -145,7 +146,7 @@ export function AppointmentForm() {
             Reserva tu cita
           </h3>
           <p className="mt-1 text-sm leading-6 text-[#7B6A80]">
-            Comparte los detalles y te confirmaremos con una atencion clara y
+            Comparte los detalles y te confirmaremos con una atención clara y
             cercana.
           </p>
         </div>
@@ -208,11 +209,11 @@ export function AppointmentForm() {
             className="h-12 w-full rounded-2xl border border-[#E8D6DE] bg-[#FFFDFB] px-3 text-sm text-[#2F2433] focus-visible:ring-3 focus-visible:ring-[#DFA2BA]/45"
           >
             <option value="">Seleccionar</option>
-            <option value="Cita de valoracion">Cita de valoracion</option>
-            <option value="Entrevista de adopcion">Entrevista de adopcion</option>
-            <option value="Seguimiento personalizado">
-              Seguimiento personalizado
-            </option>
+            {appointmentServiceOptions.map((service) => (
+              <option key={service} value={service}>
+                {service}
+              </option>
+            ))}
           </select>
         </Field>
         <Field label="Fecha preferida" error={errors.preferred_date?.message}>
@@ -239,7 +240,7 @@ export function AppointmentForm() {
             className="h-12 w-full rounded-2xl border border-[#E8D6DE] bg-[#FFFDFB] px-3 text-sm text-[#2F2433] focus-visible:ring-3 focus-visible:ring-[#DFA2BA]/45"
           >
             <option value="whatsapp">WhatsApp</option>
-            <option value="telefono">Telefono</option>
+              <option value="telefono">Teléfono</option>
             <option value="email">Email</option>
           </select>
         </Field>
@@ -285,7 +286,7 @@ export function AppointmentForm() {
 
       {lastWhatsAppUrl ? (
         <div className="mt-5 rounded-[1.5rem] border border-[#D9C6E8] bg-[#F7F1FA]/70 p-4 text-sm leading-6 text-[#5B3A63]">
-          Tu solicitud quedo registrada. Si quieres acelerar la confirmacion,
+          Tu solicitud quedó registrada. Si quieres acelerar la confirmación,
           puedes abrir WhatsApp con el resumen ya preparado.
           <a
             href={lastWhatsAppUrl}
@@ -293,7 +294,7 @@ export function AppointmentForm() {
             rel="noreferrer"
             className="mt-3 inline-flex font-semibold text-[#A7353F] underline-offset-4 hover:underline"
           >
-            Continuar conversacion
+            Continuar conversación
           </a>
         </div>
       ) : null}

@@ -4,8 +4,8 @@ import { Footer } from "@/components/landing/footer";
 import { Navbar } from "@/components/landing/navbar";
 
 export const metadata: Metadata = {
-  title: "Reservar cita | Chiens & Chats",
-  description: "Agenda una cita con una experiencia clara y calida.",
+  title: "Reservar cita | Chiens et Chats",
+  description: "Agenda una cita con una experiencia clara y cálida.",
 };
 
 export default function CitasPage() {

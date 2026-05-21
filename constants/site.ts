@@ -1,10 +1,15 @@
 import {
+  Bath,
   CalendarDays,
   HeartHandshake,
+  HeartPulse,
   MessageCircleHeart,
   PawPrint,
+  Scissors,
   ShieldCheck,
   Sparkles,
+  Stethoscope,
+  Syringe,
 } from "lucide-react";
 import type {
   AppointmentStatus,
@@ -13,10 +18,11 @@ import type {
 } from "@/types/database";
 
 export const brand = {
-  name: "Chiens & Chats",
-  email: "hola@chienschats.mx",
+  name: "Chiens et Chats",
+  email: "hola@chiensetchats.mx",
   phone: "+52 55 0000 0000",
   location: "Ciudad de Mexico",
+  social: "@chiensetchats",
 };
 
 export const navItems = [
@@ -30,44 +36,43 @@ export const navItems = [
 
 export const serviceHighlights = [
   {
-    title: "Reservacion de citas",
+    title: "Cuidado médico y estético",
     description:
-      "Agenda servicios con una experiencia clara, amable y pensada para reducir friccion.",
-    icon: CalendarDays,
+      "Consulta, vacunación, desparasitación y estética con delicadeza.",
+    icon: Stethoscope,
   },
   {
-    title: "Proceso de adopcion",
-    description:
-      "Conoce perfiles disponibles, recibe orientacion y avanza con seguimiento humano.",
+    title: "Procesos de adopción",
+    description: "Adopciones responsables acompañadas de principio a fin.",
     icon: PawPrint,
   },
   {
-    title: "Acompanamiento personalizado",
+    title: "Agenda clara y humana",
     description:
-      "Te guiamos antes, durante y despues de cada decision importante.",
-    icon: HeartHandshake,
+      "Agenda en minutos, recibe confirmación y continúa por WhatsApp.",
+    icon: MessageCircleHeart,
   },
 ];
 
 export const processSteps = [
   {
     title: "Elegir servicio",
-    description: "Selecciona si deseas una cita, iniciar adopcion o recibir guia.",
+    description: "Selecciona consulta, estética, vacunación o adopción.",
     icon: Sparkles,
   },
   {
     title: "Agendar cita",
-    description: "Comparte tus datos y el mejor horario para coordinar contigo.",
+    description: "Comparte datos de tu mascota y el mejor horario.",
     icon: CalendarDays,
   },
   {
-    title: "Recibir confirmacion",
-    description: "Te contactamos por el canal que prefieras para confirmar detalles.",
+    title: "Recibir confirmación",
+    description: "Te contactamos por el canal que prefieras.",
     icon: MessageCircleHeart,
   },
   {
     title: "Iniciar proceso",
-    description: "Avanzas con claridad, cuidado y acompanamiento cercano.",
+    description: "Avanzas con cuidado médico, estético o de adopción.",
     icon: ShieldCheck,
   },
 ];
@@ -75,13 +80,13 @@ export const processSteps = [
 export const testimonials = [
   {
     quote:
-      "Todo se sintio cuidado de principio a fin. La reservacion fue facil y el seguimiento, impecable.",
+      "Todo se sintió cuidado de principio a fin. La reservación fue fácil y el seguimiento, impecable.",
     name: "Mariana L.",
     role: "Tutora de Nala",
   },
   {
     quote:
-      "Nos acompanaron con mucha sensibilidad durante la adopcion. Fue claro, humano y precioso.",
+      "Nos acompañaron con mucha sensibilidad durante la adopción. Fue claro, humano y precioso.",
     name: "Ana y Sofia",
     role: "Familia adoptante",
   },
@@ -95,26 +100,73 @@ export const testimonials = [
 
 export const fallbackServices: Service[] = [
   {
-    id: "fallback-cita",
-    name: "Cita de valoracion",
-    description: "Primera revision y orientacion personalizada.",
+    id: "fallback-consulta",
+    name: "Consulta médica veterinaria",
+    description: "Valoración clínica para perros y gatos con trato sereno.",
     duration_minutes: 45,
     status: "activo",
+    icon: "stethoscope",
   },
   {
-    id: "fallback-adopcion",
-    name: "Entrevista de adopcion",
-    description: "Sesiones para conocer necesidades y compatibilidad.",
-    duration_minutes: 60,
+    id: "fallback-estetica",
+    name: "Estética canina, baño y cuidado",
+    description: "Baño, corte y cuidado de piel y pelaje con mucha delicadeza.",
+    duration_minutes: 90,
     status: "activo",
+    icon: "bath",
   },
   {
-    id: "fallback-seguimiento",
-    name: "Seguimiento familiar",
-    description: "Acompanamiento posterior a la cita o adopcion.",
+    id: "fallback-vacunacion",
+    name: "Vacunación",
+    description: "Aplicación y seguimiento de esquemas preventivos.",
     duration_minutes: 30,
     status: "activo",
+    icon: "syringe",
   },
+  {
+    id: "fallback-desparasitacion",
+    name: "Desparasitación",
+    description: "Cuidado preventivo para bienestar y tranquilidad en casa.",
+    duration_minutes: 25,
+    status: "activo",
+    icon: "heart-pulse",
+  },
+  {
+    id: "fallback-adopciones",
+    name: "Acompañamiento en adopciones",
+    description: "Proceso responsable, humano y guiado de principio a fin.",
+    duration_minutes: 60,
+    status: "activo",
+    icon: "paw",
+  },
+];
+
+export const appointmentServiceOptions = [
+  "Consulta médica",
+  "Baño",
+  "Corte de pelo",
+  "Baño + corte",
+  "Vacunación",
+  "Desparasitación",
+  "Seguimiento médico",
+  "Proceso de adopción",
+  "Otro",
+];
+
+export const veterinaryServiceIcons = [
+  Stethoscope,
+  Bath,
+  Syringe,
+  HeartPulse,
+  HeartHandshake,
+  Scissors,
+  CalendarDays,
+];
+
+export const veterinaryMicrocopy = [
+  "Cuidado médico y estético con delicadeza.",
+  "Procesos de adopción acompañados de principio a fin.",
+  "Agenda en minutos, recibe confirmación y continúa por WhatsApp.",
 ];
 
 export const appointmentStatusLabels: Record<AppointmentStatus, string> = {
@@ -142,9 +194,3 @@ export const petStatusOptions: PetAdoptionStatus[] = [
   "en_proceso",
   "adoptado",
 ];
-
-export const adoptionFallbackImage =
-  "https://images.unsplash.com/photo-1601758123927-19685dfddd30?auto=format&fit=crop&w=1200&q=80";
-
-export const heroImage =
-  "https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?auto=format&fit=crop&w=1400&q=85";

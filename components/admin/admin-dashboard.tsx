@@ -46,7 +46,7 @@ export function AdminDashboard() {
   return (
     <AdminShell
       title="Resumen"
-      description="Una vista rapida para revisar citas recientes, adopciones disponibles y servicios activos desde celular."
+      description="Una vista rápida para revisar citas recientes, adopciones disponibles y servicios activos desde celular."
     >
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
@@ -79,10 +79,10 @@ export function AdminDashboard() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="font-heading text-3xl text-[#2F2433]">
-              Accesos rapidos
+              Accesos rápidos
             </h2>
             <p className="mt-1 text-sm leading-6 text-[#7B6A80]">
-              Diseñados para resolver lo mas frecuente desde celular.
+              Diseñados para resolver lo más frecuente desde celular.
             </p>
           </div>
           <div className="grid gap-2 sm:flex">
@@ -97,7 +97,7 @@ export function AdminDashboard() {
               variant="outline"
               className="h-11 rounded-full border-[#E8D6DE] bg-white text-[#5B3A63]"
             >
-              <Link href="/admin/adopciones">Nueva adopcion</Link>
+              <Link href="/admin/adopciones">Gestionar adopciones</Link>
             </Button>
           </div>
         </div>
@@ -133,7 +133,7 @@ export function AdminDashboard() {
                 </article>
               ))
             ) : (
-              <EmptyLine text="Sin citas registradas todavia." />
+              <EmptyLine text="Sin citas registradas todavía." />
             )}
           </div>
         </section>
