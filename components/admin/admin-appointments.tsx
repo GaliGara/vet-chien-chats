@@ -6,6 +6,7 @@ import {
   Mail,
   MessageCircle,
   Phone,
+  PhoneCall,
   RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -18,8 +19,15 @@ import {
   getAppointments,
   updateAppointmentStatus,
 } from "@/lib/supabase-queries";
-import { buildWhatsAppUrl, formatDate, formatDateTime } from "@/lib/format";
+import {
+  buildPhoneHref,
+  buildWhatsAppUrl,
+  formatDate,
+  formatDateTime,
+} from "@/lib/format";
+import { getSupabaseErrorMessage } from "@/lib/supabase-errors";
 import { AdminShell } from "@/components/admin/admin-shell";
+import { AdminNotice } from "@/components/admin/admin-notice";
 import { AppointmentStatusBadge } from "@/components/admin/status-badge";
 import { Button } from "@/components/ui/button";
 
@@ -28,20 +36,34 @@ export function AdminAppointments() {
   const [filter, setFilter] = useState<AppointmentStatus | "todas">("todas");
   const [isLoading, setIsLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState("");
 
   async function loadAppointments() {
     setIsLoading(true);
-    const data = await getAppointments();
-    setAppointments(data);
-    setIsLoading(false);
+    setErrorMessage("");
+    try {
+      const data = await getAppointments({ throwOnError: true });
+      setAppointments(data);
+    } catch (error) {
+      setAppointments([]);
+      setErrorMessage(getSupabaseErrorMessage(error));
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   useEffect(() => {
     let isMounted = true;
 
-    getAppointments()
+    getAppointments({ throwOnError: true })
       .then((data) => {
         if (isMounted) setAppointments(data);
+      })
+      .catch((error) => {
+        if (isMounted) {
+          setAppointments([]);
+          setErrorMessage(getSupabaseErrorMessage(error));
+        }
       })
       .finally(() => {
         if (isMounted) setIsLoading(false);
@@ -69,8 +91,7 @@ export function AdminAppointments() {
       toast.success("Status actualizado");
     } catch (error) {
       toast.error("No se pudo actualizar", {
-        description:
-          error instanceof Error ? error.message : "Revisa tus policies de Supabase.",
+        description: getSupabaseErrorMessage(error),
       });
     } finally {
       setUpdatingId(null);
@@ -88,6 +109,7 @@ export function AdminAppointments() {
             <button
               key={status}
               type="button"
+              aria-pressed={filter === status}
               onClick={() => setFilter(status)}
               className={`min-w-fit rounded-full border px-4 py-2 text-sm font-semibold transition ${
                 filter === status
@@ -119,6 +141,11 @@ export function AdminAppointments() {
             />
           ))}
         </div>
+      ) : errorMessage ? (
+        <AdminNotice
+          title="No se pudieron cargar las citas"
+          text={errorMessage}
+        />
       ) : filteredAppointments.length > 0 ? (
         <div className="grid gap-4 lg:grid-cols-2">
           {filteredAppointments.map((appointment) => (
@@ -131,9 +158,10 @@ export function AdminAppointments() {
           ))}
         </div>
       ) : (
-        <div className="rounded-[2rem] border border-dashed border-[#D9C6E8] bg-[#F7F1FA]/70 p-8 text-center text-[#7B6A80]">
-          No hay citas para este filtro.
-        </div>
+        <AdminNotice
+          title="Sin citas por ahora"
+          text="Cuando llegue una solicitud desde el formulario, aparecera aqui como tarjeta lista para gestionar."
+        />
       )}
     </AdminShell>
   );
@@ -149,6 +177,7 @@ function AppointmentCard({
   onStatusChange: (id: string, status: AppointmentStatus) => void;
 }) {
   const whatsappMessage = `Hola ${appointment.client_name}, te contactamos de Chiens & Chats sobre tu cita para ${appointment.pet_name} el ${appointment.preferred_date} a las ${appointment.preferred_time}.`;
+  const phoneHref = buildPhoneHref(appointment.phone);
 
   return (
     <article className="rounded-[1.75rem] border border-[#E8D6DE] bg-white p-5 shadow-[0_16px_44px_rgb(91_58_99/0.07)]">
@@ -199,8 +228,9 @@ function AppointmentCard({
         </div>
       </div>
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto]">
+      <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto_auto]">
         <select
+          aria-label={`Cambiar status de cita de ${appointment.client_name}`}
           value={appointment.status}
           disabled={updating}
           onChange={(event) =>
@@ -230,10 +260,23 @@ function AppointmentCard({
             </a>
           </Button>
         ) : null}
+        {phoneHref ? (
+          <Button
+            asChild
+            variant="outline"
+            className="h-11 rounded-full border-[#E8D6DE] bg-white text-[#5B3A63] hover:bg-[#FFF6F8]"
+          >
+            <a href={phoneHref}>
+              <PhoneCall className="size-4" />
+              Llamar
+            </a>
+          </Button>
+        ) : null}
       </div>
     </article>
   );
 }
+
 
 function InfoLine({
   icon: Icon,

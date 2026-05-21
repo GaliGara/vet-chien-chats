@@ -118,6 +118,11 @@
 }
 
 @layer base {
+  html,
+  body {
+    overflow-x: clip;
+  }
+
   * {
     @apply border-border outline-ring/50;
   }
@@ -139,6 +144,23 @@
   select {
     @apply outline-ring/50;
   }
+
+  input,
+  textarea,
+  select {
+    @apply scroll-mt-24;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
 }
 
 @layer utilities {
@@ -152,5 +174,10 @@
 
   .soft-border {
     border-color: #e8d6de;
+  }
+
+  .premium-ring {
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 60%),
+      0 22px 60px rgb(91 58 99 / 8%);
   }
 }

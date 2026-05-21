@@ -58,8 +58,11 @@ export function Footer() {
           </div>
         </div>
       </div>
-      <div className="mx-auto mt-10 max-w-7xl border-t border-[#E8D6DE] pt-6 text-xs text-[#7B6A80]">
-        © 2026 {brand.name}. Todos los derechos reservados.
+      <div className="mx-auto mt-10 flex max-w-7xl flex-col gap-2 border-t border-[#E8D6DE] pt-6 text-xs text-[#7B6A80] sm:flex-row sm:items-center sm:justify-between">
+        <span>© 2026 {brand.name}. Todos los derechos reservados.</span>
+        <Link href="/admin" className="w-fit hover:text-[#A7353F]">
+          Acceso admin
+        </Link>
       </div>
     </footer>
   );

@@ -101,6 +101,9 @@ export function PetCard({ pet }: { pet: PetForAdoption }) {
           <img
             src={pet.image_url || adoptionFallbackImage}
             alt={`Foto de ${pet.name}`}
+            onError={(event) => {
+              event.currentTarget.src = adoptionFallbackImage;
+            }}
             className="h-full w-full object-cover"
           />
           <div className="absolute left-4 top-4">

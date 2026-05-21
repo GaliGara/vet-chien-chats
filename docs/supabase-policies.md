@@ -1,24 +1,28 @@
-# Supabase schema y policies sugeridas
+# Supabase schema y RLS
 
-Estas notas asumen que el frontend usa solo `NEXT_PUBLIC_SUPABASE_URL` y
-`NEXT_PUBLIC_SUPABASE_ANON_KEY`. No uses service role keys en el navegador.
+Estas notas son para ejecutar manualmente en Supabase SQL Editor.
+
+El frontend usa solo:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+No uses `service_role` ni secret keys en el navegador.
 
 ## Variables
 
-En `.env.local`:
-
 ```bash
-NEXT_PUBLIC_SUPABASE_URL=...
-NEXT_PUBLIC_SUPABASE_ANON_KEY=...
-NEXT_PUBLIC_WHATSAPP_NUMBER=525500000000 # opcional, sin signos ni espacios
+NEXT_PUBLIC_SUPABASE_URL=https://tu-proyecto.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=tu-anon-key-publica
+NEXT_PUBLIC_WHATSAPP_NUMBER=525500000000 # opcional
 ```
 
-## Columnas esperadas
+## Schema sugerido
 
 ### appointments
 
 ```sql
-create table if not exists appointments (
+create table if not exists public.appointments (
   id uuid primary key default gen_random_uuid(),
   client_name text not null,
   phone text not null,
@@ -31,14 +35,18 @@ create table if not exists appointments (
   message text,
   contact_channel text not null default 'whatsapp',
   status text not null default 'nueva',
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  constraint appointments_contact_channel_check
+    check (contact_channel in ('whatsapp', 'telefono', 'email')),
+  constraint appointments_status_check
+    check (status in ('nueva', 'confirmada', 'cancelada', 'atendida'))
 );
 ```
 
 ### pets_for_adoption
 
 ```sql
-create table if not exists pets_for_adoption (
+create table if not exists public.pets_for_adoption (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   species text not null,
@@ -49,14 +57,16 @@ create table if not exists pets_for_adoption (
   description text,
   image_url text,
   status text not null default 'disponible',
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  constraint pets_for_adoption_status_check
+    check (status in ('disponible', 'en_proceso', 'adoptado'))
 );
 ```
 
 ### services
 
 ```sql
-create table if not exists services (
+create table if not exists public.services (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   description text,
@@ -64,66 +74,130 @@ create table if not exists services (
   duration_minutes integer,
   status text not null default 'activo',
   icon text,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  constraint services_status_check
+    check (status in ('activo', 'inactivo'))
 );
 ```
 
-## RLS recomendado
+## RLS basico
 
-El panel admin usa Supabase Auth. La opcion "Revision local" solo desbloquea la
-interfaz para revisar UI; las escrituras seguras requieren policies para usuarios
-autenticados.
+Este bloque permite:
+
+1. insertar citas desde anon
+2. leer adopciones disponibles desde anon
+3. leer servicios activos desde anon
+4. leer/editar citas con usuario autenticado
+5. crear/editar/eliminar adopciones con usuario autenticado
+
+Importante: estas policies tratan a cualquier usuario autenticado como admin.
+Para produccion, agrega una tabla de perfiles/roles o allowlist.
 
 ```sql
-alter table appointments enable row level security;
-alter table pets_for_adoption enable row level security;
-alter table services enable row level security;
+alter table public.appointments enable row level security;
+alter table public.pets_for_adoption enable row level security;
+alter table public.services enable row level security;
 
+drop policy if exists "Public can create appointments" on public.appointments;
 create policy "Public can create appointments"
-on appointments for insert
+on public.appointments
+for insert
 to anon, authenticated
 with check (
   status = 'nueva'
   and contact_channel in ('whatsapp', 'telefono', 'email')
 );
 
+drop policy if exists "Authenticated can read appointments" on public.appointments;
 create policy "Authenticated can read appointments"
-on appointments for select
+on public.appointments
+for select
 to authenticated
 using (true);
 
+drop policy if exists "Authenticated can update appointments" on public.appointments;
 create policy "Authenticated can update appointments"
-on appointments for update
+on public.appointments
+for update
 to authenticated
 using (true)
 with check (status in ('nueva', 'confirmada', 'cancelada', 'atendida'));
 
+drop policy if exists "Public can read available pets" on public.pets_for_adoption;
 create policy "Public can read available pets"
-on pets_for_adoption for select
+on public.pets_for_adoption
+for select
 to anon, authenticated
 using (status = 'disponible');
 
+drop policy if exists "Authenticated can read all pets" on public.pets_for_adoption;
 create policy "Authenticated can read all pets"
-on pets_for_adoption for select
+on public.pets_for_adoption
+for select
 to authenticated
 using (true);
 
-create policy "Authenticated can manage pets"
-on pets_for_adoption for all
+drop policy if exists "Authenticated can insert pets" on public.pets_for_adoption;
+create policy "Authenticated can insert pets"
+on public.pets_for_adoption
+for insert
+to authenticated
+with check (status in ('disponible', 'en_proceso', 'adoptado'));
+
+drop policy if exists "Authenticated can update pets" on public.pets_for_adoption;
+create policy "Authenticated can update pets"
+on public.pets_for_adoption
+for update
 to authenticated
 using (true)
 with check (status in ('disponible', 'en_proceso', 'adoptado'));
 
+drop policy if exists "Authenticated can delete pets" on public.pets_for_adoption;
+create policy "Authenticated can delete pets"
+on public.pets_for_adoption
+for delete
+to authenticated
+using (true);
+
+drop policy if exists "Public can read active services" on public.services;
 create policy "Public can read active services"
-on services for select
+on public.services
+for select
 to anon, authenticated
 using (status = 'activo');
 
+drop policy if exists "Authenticated can read all services" on public.services;
 create policy "Authenticated can read all services"
-on services for select
+on public.services
+for select
 to authenticated
 using (true);
 ```
 
-Si prefieres que el admin use roles mas estrictos, crea una tabla de perfiles y
-agrega checks por `auth.uid()` antes de usar el panel en produccion.
+## Opcion mas segura para admin
+
+Antes de produccion, puedes crear una tabla `admin_users` y reemplazar las
+policies autenticadas por checks de admin:
+
+```sql
+create table if not exists public.admin_users (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
+create or replace function public.is_admin()
+returns boolean
+language sql
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.admin_users
+    where user_id = auth.uid()
+  );
+$$;
+```
+
+Luego cambia `using (true)` por `using (public.is_admin())` y los `with check`
+por `with check (public.is_admin() and ...)` donde aplique.

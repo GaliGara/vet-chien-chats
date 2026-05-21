@@ -9,8 +9,20 @@ import type {
   Service,
 } from "@/types/database";
 
+type QueryOptions = {
+  throwOnError?: boolean;
+};
+
 function reportSupabaseError(context: string, error: unknown) {
   console.warn(`[Supabase] ${context}`, error);
+}
+
+function handleQueryError(context: string, error: unknown, options?: QueryOptions) {
+  reportSupabaseError(context, error);
+
+  if (options?.throwOnError) {
+    throw error;
+  }
 }
 
 export async function createAppointment(input: AppointmentInsert) {
@@ -28,7 +40,7 @@ export async function createAppointment(input: AppointmentInsert) {
   return data as Appointment;
 }
 
-export async function getAppointments() {
+export async function getAppointments(options?: QueryOptions) {
   if (!isSupabaseConfigured) return [];
 
   const { data, error } = await supabase
@@ -37,7 +49,7 @@ export async function getAppointments() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    reportSupabaseError("No se pudieron leer las citas.", error);
+    handleQueryError("No se pudieron leer las citas.", error, options);
     return [];
   }
 
@@ -63,7 +75,7 @@ export async function updateAppointmentStatus(
   return data as Appointment;
 }
 
-export async function getPetsForAdoption(status?: string) {
+export async function getPetsForAdoption(status?: string, options?: QueryOptions) {
   if (!isSupabaseConfigured) return [];
 
   let query = supabase
@@ -78,7 +90,7 @@ export async function getPetsForAdoption(status?: string) {
   const { data, error } = await query;
 
   if (error) {
-    reportSupabaseError("No se pudieron leer las adopciones.", error);
+    handleQueryError("No se pudieron leer las adopciones.", error, options);
     return [];
   }
 
@@ -129,7 +141,7 @@ export async function deletePetForAdoption(id: string) {
   if (error) throw error;
 }
 
-export async function getServices() {
+export async function getServices(options?: QueryOptions) {
   if (!isSupabaseConfigured) return [];
 
   const { data, error } = await supabase
@@ -138,7 +150,7 @@ export async function getServices() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    reportSupabaseError("No se pudieron leer los servicios.", error);
+    handleQueryError("No se pudieron leer los servicios.", error, options);
     return [];
   }
 

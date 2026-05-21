@@ -15,7 +15,7 @@ export function FinalCta() {
         </h2>
         <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-[#7B6A80] sm:text-lg">
           Reserva una cita o explora adopciones disponibles. El siguiente paso
-          puede sentirse sencillo, bonito y acompañado.
+          puede sentirse sencillo, sereno y acompañado.
         </p>
         <Button
           asChild

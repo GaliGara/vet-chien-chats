@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   BriefcaseBusiness,
@@ -17,6 +18,7 @@ import {
 import { formatDate } from "@/lib/format";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AppointmentStatusBadge, PetStatusBadge } from "@/components/admin/status-badge";
+import { Button } from "@/components/ui/button";
 
 const emptyStats: AdminStats = {
   totalAppointments: 0,
@@ -72,6 +74,34 @@ export function AdminDashboard() {
           loading={isLoading}
         />
       </div>
+
+      <section className="mt-5 rounded-[2rem] border border-[#E8D6DE] bg-[#FFF6F8] p-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="font-heading text-3xl text-[#2F2433]">
+              Accesos rapidos
+            </h2>
+            <p className="mt-1 text-sm leading-6 text-[#7B6A80]">
+              Diseñados para resolver lo mas frecuente desde celular.
+            </p>
+          </div>
+          <div className="grid gap-2 sm:flex">
+            <Button
+              asChild
+              className="h-11 rounded-full bg-[#A7353F] text-[#FFFDFB] hover:bg-[#8E2D36]"
+            >
+              <Link href="/admin/citas">Gestionar citas</Link>
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              className="h-11 rounded-full border-[#E8D6DE] bg-white text-[#5B3A63]"
+            >
+              <Link href="/admin/adopciones">Nueva adopcion</Link>
+            </Button>
+          </div>
+        </div>
+      </section>
 
       <div className="mt-6 grid gap-5 lg:grid-cols-2">
         <section className="rounded-[2rem] border border-[#E8D6DE] bg-white p-5 shadow-[0_16px_44px_rgb(91_58_99/0.07)]">

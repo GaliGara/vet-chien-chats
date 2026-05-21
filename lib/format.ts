@@ -26,11 +26,20 @@ export function formatDateTime(value?: string | null) {
   }).format(date);
 }
 
+export function normalizePhoneNumber(value?: string | null) {
+  return value?.replace(/\D/g, "") ?? "";
+}
+
+export function buildPhoneHref(phone?: string | null) {
+  const normalizedPhone = normalizePhoneNumber(phone);
+
+  return normalizedPhone ? `tel:+${normalizedPhone}` : "";
+}
+
 export function buildWhatsAppUrl(phone?: string | null, message?: string) {
   const target =
-    process.env.NEXT_PUBLIC_WHATSAPP_NUMBER?.replace(/\D/g, "") ??
-    phone?.replace(/\D/g, "") ??
-    "";
+    normalizePhoneNumber(phone) ||
+    normalizePhoneNumber(process.env.NEXT_PUBLIC_WHATSAPP_NUMBER);
   const encodedMessage = encodeURIComponent(
     message ??
       "Hola, quiero recibir informacion sobre citas y adopciones en Chiens & Chats."

@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CalendarDays, Loader2, MessageCircle, Send } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { createAppointment } from "@/lib/supabase-queries";
+import { getSupabaseErrorMessage } from "@/lib/supabase-errors";
 import { buildWhatsAppUrl } from "@/lib/format";
 import type { AppointmentInsert } from "@/types/database";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,11 @@ import { Textarea } from "@/components/ui/textarea";
 
 const appointmentSchema = z.object({
   client_name: z.string().min(2, "Escribe tu nombre completo."),
-  phone: z.string().min(8, "Agrega un telefono valido."),
+  phone: z
+    .string()
+    .trim()
+    .min(8, "Agrega un telefono valido.")
+    .regex(/^[+()\d\s-]+$/, "Usa solo numeros, espacios o +."),
   email: z
     .union([z.string().email("Agrega un email valido."), z.literal("")])
     .optional(),
@@ -46,6 +51,7 @@ const defaultValues: AppointmentFormValues = {
 };
 
 export function AppointmentForm() {
+  const [lastWhatsAppUrl, setLastWhatsAppUrl] = useState("");
   const {
     register,
     handleSubmit,
@@ -78,17 +84,31 @@ export function AppointmentForm() {
     return buildWhatsAppUrl(undefined, message);
   }, [watchedValues]);
 
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+
   async function onSubmit(values: AppointmentFormValues) {
+    const followUpWhatsAppUrl = buildWhatsAppUrl(
+      undefined,
+      [
+        "Hola, acabo de enviar mi solicitud de cita en Chiens & Chats.",
+        `Mi nombre es ${values.client_name}.`,
+        `Mi mascota se llama ${values.pet_name}.`,
+        `Servicio: ${values.service}.`,
+        `Fecha preferida: ${values.preferred_date}.`,
+        `Hora preferida: ${values.preferred_time}.`,
+      ].join(" ")
+    );
+
     const payload: AppointmentInsert = {
-      client_name: values.client_name,
-      phone: values.phone,
-      email: values.email || null,
-      pet_name: values.pet_name,
+      client_name: values.client_name.trim(),
+      phone: values.phone.trim(),
+      email: values.email?.trim() || null,
+      pet_name: values.pet_name.trim(),
       pet_type: values.pet_type,
       service: values.service,
       preferred_date: values.preferred_date,
       preferred_time: values.preferred_time,
-      message: values.message || null,
+      message: values.message?.trim() || null,
       contact_channel: values.contact_channel,
       status: "nueva",
     };
@@ -97,14 +117,16 @@ export function AppointmentForm() {
       await createAppointment(payload);
       toast.success("Cita registrada", {
         description: "Te contactaremos pronto por tu canal preferido.",
+        action: {
+          label: "WhatsApp",
+          onClick: () => window.open(followUpWhatsAppUrl, "_blank", "noreferrer"),
+        },
       });
+      setLastWhatsAppUrl(followUpWhatsAppUrl);
       reset(defaultValues);
     } catch (error) {
       toast.error("No pudimos guardar la cita", {
-        description:
-          error instanceof Error
-            ? error.message
-            : "Revisa tu conexion o las policies de Supabase.",
+        description: getSupabaseErrorMessage(error),
       });
     }
   }
@@ -134,6 +156,7 @@ export function AppointmentForm() {
           <Input
             {...register("client_name")}
             aria-invalid={Boolean(errors.client_name)}
+            autoComplete="name"
             className="h-12 rounded-2xl border-[#E8D6DE] bg-[#FFFDFB]"
             placeholder="Tu nombre"
           />
@@ -142,6 +165,8 @@ export function AppointmentForm() {
           <Input
             {...register("phone")}
             aria-invalid={Boolean(errors.phone)}
+            autoComplete="tel"
+            inputMode="tel"
             className="h-12 rounded-2xl border-[#E8D6DE] bg-[#FFFDFB]"
             placeholder="+52..."
           />
@@ -151,6 +176,7 @@ export function AppointmentForm() {
             {...register("email")}
             type="email"
             aria-invalid={Boolean(errors.email)}
+            autoComplete="email"
             className="h-12 rounded-2xl border-[#E8D6DE] bg-[#FFFDFB]"
             placeholder="tu@email.com"
           />
@@ -193,6 +219,7 @@ export function AppointmentForm() {
           <Input
             {...register("preferred_date")}
             type="date"
+            min={today}
             aria-invalid={Boolean(errors.preferred_date)}
             className="h-12 rounded-2xl border-[#E8D6DE] bg-[#FFFDFB]"
           />
@@ -255,6 +282,21 @@ export function AppointmentForm() {
           </a>
         </Button>
       </div>
+
+      {lastWhatsAppUrl ? (
+        <div className="mt-5 rounded-[1.5rem] border border-[#D9C6E8] bg-[#F7F1FA]/70 p-4 text-sm leading-6 text-[#5B3A63]">
+          Tu solicitud quedo registrada. Si quieres acelerar la confirmacion,
+          puedes abrir WhatsApp con el resumen ya preparado.
+          <a
+            href={lastWhatsAppUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-3 inline-flex font-semibold text-[#A7353F] underline-offset-4 hover:underline"
+          >
+            Continuar conversacion
+          </a>
+        </div>
+      ) : null}
     </form>
   );
 }

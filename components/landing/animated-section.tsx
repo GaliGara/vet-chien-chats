@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 type AnimatedSectionProps = {
@@ -17,14 +17,20 @@ export function AnimatedSection({
   delay = 0,
   id,
 }: AnimatedSectionProps) {
+  const shouldReduceMotion = useReducedMotion();
+
   return (
     <motion.section
       id={id}
       className={className}
-      initial={{ opacity: 0, y: 24 }}
-      whileInView={{ opacity: 1, y: 0 }}
+      initial={shouldReduceMotion ? false : { opacity: 0, y: 24 }}
+      whileInView={shouldReduceMotion ? undefined : { opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-80px" }}
-      transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1], delay }}
+      transition={
+        shouldReduceMotion
+          ? undefined
+          : { duration: 0.7, ease: [0.22, 1, 0.36, 1], delay }
+      }
     >
       {children}
     </motion.section>
@@ -38,11 +44,15 @@ export function MotionCard({
   children: ReactNode;
   className?: string;
 }) {
+  const shouldReduceMotion = useReducedMotion();
+
   return (
     <motion.div
       className={cn(className)}
-      whileHover={{ y: -6 }}
-      transition={{ duration: 0.25, ease: "easeOut" }}
+      whileHover={shouldReduceMotion ? undefined : { y: -6 }}
+      transition={
+        shouldReduceMotion ? undefined : { duration: 0.25, ease: "easeOut" }
+      }
     >
       {children}
     </motion.div>

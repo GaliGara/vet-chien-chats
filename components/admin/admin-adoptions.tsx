@@ -21,7 +21,9 @@ import {
   getPetsForAdoption,
   updatePetForAdoption,
 } from "@/lib/supabase-queries";
+import { getSupabaseErrorMessage } from "@/lib/supabase-errors";
 import { AdminShell } from "@/components/admin/admin-shell";
+import { AdminNotice } from "@/components/admin/admin-notice";
 import { PetStatusBadge } from "@/components/admin/status-badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -62,20 +64,34 @@ export function AdminAdoptions() {
   const [isLoading, setIsLoading] = useState(true);
   const [editingPet, setEditingPet] = useState<PetForAdoption | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   async function loadPets() {
     setIsLoading(true);
-    const data = await getPetsForAdoption();
-    setPets(data);
-    setIsLoading(false);
+    setErrorMessage("");
+    try {
+      const data = await getPetsForAdoption(undefined, { throwOnError: true });
+      setPets(data);
+    } catch (error) {
+      setPets([]);
+      setErrorMessage(getSupabaseErrorMessage(error));
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   useEffect(() => {
     let isMounted = true;
 
-    getPetsForAdoption()
+    getPetsForAdoption(undefined, { throwOnError: true })
       .then((data) => {
         if (isMounted) setPets(data);
+      })
+      .catch((error) => {
+        if (isMounted) {
+          setPets([]);
+          setErrorMessage(getSupabaseErrorMessage(error));
+        }
       })
       .finally(() => {
         if (isMounted) setIsLoading(false);
@@ -114,8 +130,7 @@ export function AdminAdoptions() {
       toast.success("Mascota eliminada");
     } catch (error) {
       toast.error("No se pudo eliminar", {
-        description:
-          error instanceof Error ? error.message : "Revisa tus policies de Supabase.",
+        description: getSupabaseErrorMessage(error),
       });
     }
   }
@@ -129,8 +144,7 @@ export function AdminAdoptions() {
       toast.success("Status actualizado");
     } catch (error) {
       toast.error("No se pudo actualizar", {
-        description:
-          error instanceof Error ? error.message : "Revisa tus policies de Supabase.",
+        description: getSupabaseErrorMessage(error),
       });
     }
   }
@@ -146,6 +160,7 @@ export function AdminAdoptions() {
             <button
               key={status}
               type="button"
+              aria-pressed={filter === status}
               onClick={() => setFilter(status)}
               className={`min-w-fit rounded-full border px-4 py-2 text-sm font-semibold transition ${
                 filter === status
@@ -215,6 +230,11 @@ export function AdminAdoptions() {
             />
           ))}
         </div>
+      ) : errorMessage ? (
+        <AdminNotice
+          title="No se pudieron cargar adopciones"
+          text={errorMessage}
+        />
       ) : filteredPets.length > 0 ? (
         <div className="grid gap-4 lg:grid-cols-2">
           {filteredPets.map((pet) => (
@@ -228,9 +248,10 @@ export function AdminAdoptions() {
           ))}
         </div>
       ) : (
-        <div className="rounded-[2rem] border border-dashed border-[#D9C6E8] bg-[#F7F1FA]/70 p-8 text-center text-[#7B6A80]">
-          No hay mascotas para este filtro.
-        </div>
+        <AdminNotice
+          title="Sin mascotas en este filtro"
+          text="Crea un perfil nuevo o cambia el status de una mascota para verla en esta vista."
+        />
       )}
     </AdminShell>
   );
@@ -253,6 +274,9 @@ function PetAdminCard({
         <img
           src={pet.image_url || adoptionFallbackImage}
           alt={`Foto de ${pet.name}`}
+          onError={(event) => {
+            event.currentTarget.src = adoptionFallbackImage;
+          }}
           className="h-full w-full object-cover"
         />
         <div className="absolute left-4 top-4">
@@ -302,6 +326,7 @@ function PetAdminCard({
         </p>
 
         <select
+          aria-label={`Cambiar status de adopcion de ${pet.name}`}
           value={pet.status}
           onChange={(event) =>
             onStatusChange(pet, event.target.value as PetAdoptionStatus)
@@ -375,8 +400,7 @@ function PetForm({
       onSaved(savedPet);
     } catch (error) {
       toast.error("No se pudo guardar", {
-        description:
-          error instanceof Error ? error.message : "Revisa tus policies de Supabase.",
+        description: getSupabaseErrorMessage(error),
       });
     } finally {
       setIsSaving(false);
@@ -418,6 +442,7 @@ function PetForm({
             Status
           </span>
           <select
+            aria-label="Status de adopcion"
             value={form.status}
             onChange={(event) =>
               updateField("status", event.target.value as PetAdoptionStatus)
@@ -483,6 +508,7 @@ function TextField({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         required={required}
+        aria-label={label}
         className="h-12 rounded-2xl border-[#E8D6DE] bg-white"
       />
     </label>

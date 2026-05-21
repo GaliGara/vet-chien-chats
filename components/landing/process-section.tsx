@@ -4,7 +4,10 @@ import { SectionHeading } from "@/components/landing/section-heading";
 
 export function ProcessSection() {
   return (
-    <AnimatedSection id="proceso" className="bg-[#FFF6F8] px-4 py-20 sm:px-6 lg:px-8">
+    <AnimatedSection
+      id="proceso"
+      className="bg-[#FFF6F8] px-4 py-18 sm:px-6 sm:py-20 lg:px-8"
+    >
       <div className="mx-auto max-w-7xl">
         <SectionHeading
           center
@@ -13,7 +16,7 @@ export function ProcessSection() {
           description="La experiencia esta creada para que sepas que sigue, quien te acompana y como continuar en cada momento."
         />
 
-        <div className="mt-12 grid gap-5 md:grid-cols-4">
+        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {processSteps.map((step, index) => {
             const Icon = step.icon;
             return (

@@ -5,27 +5,43 @@ import { BriefcaseBusiness, Clock, RefreshCw } from "lucide-react";
 import { fallbackServices } from "@/constants/site";
 import type { Service } from "@/types/database";
 import { getServices } from "@/lib/supabase-queries";
+import { getSupabaseErrorMessage } from "@/lib/supabase-errors";
 import { AdminShell } from "@/components/admin/admin-shell";
+import { AdminNotice } from "@/components/admin/admin-notice";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
 export function AdminServices() {
   const [services, setServices] = useState<Service[]>(fallbackServices);
   const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
 
   async function loadServices() {
     setIsLoading(true);
-    const data = await getServices();
-    setServices(data.length > 0 ? data : fallbackServices);
-    setIsLoading(false);
+    setErrorMessage("");
+    try {
+      const data = await getServices({ throwOnError: true });
+      setServices(data.length > 0 ? data : fallbackServices);
+    } catch (error) {
+      setServices([]);
+      setErrorMessage(getSupabaseErrorMessage(error));
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   useEffect(() => {
     let isMounted = true;
 
-    getServices()
+    getServices({ throwOnError: true })
       .then((data) => {
         if (isMounted) setServices(data.length > 0 ? data : fallbackServices);
+      })
+      .catch((error) => {
+        if (isMounted) {
+          setServices([]);
+          setErrorMessage(getSupabaseErrorMessage(error));
+        }
       })
       .finally(() => {
         if (isMounted) setIsLoading(false);
@@ -62,7 +78,12 @@ export function AdminServices() {
             />
           ))}
         </div>
-      ) : (
+      ) : errorMessage ? (
+        <AdminNotice
+          title="No se pudieron cargar servicios"
+          text={errorMessage}
+        />
+      ) : services.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-3">
           {services.map((service) => (
             <article
@@ -93,6 +114,11 @@ export function AdminServices() {
             </article>
           ))}
         </div>
+      ) : (
+        <AdminNotice
+          title="Sin servicios configurados"
+          text="Agrega servicios en Supabase para mostrarlos aqui y en la landing."
+        />
       )}
     </AdminShell>
   );

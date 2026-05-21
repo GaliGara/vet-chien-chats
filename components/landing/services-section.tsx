@@ -28,7 +28,7 @@ export function ServicesSection() {
   }, []);
 
   return (
-    <AnimatedSection className="bg-[#FFFDFB] px-4 py-20 sm:px-6 lg:px-8">
+    <AnimatedSection className="bg-[#FFFDFB] px-4 py-18 sm:px-6 sm:py-20 lg:px-8">
       <div className="mx-auto max-w-7xl">
         <div className="grid gap-10 lg:grid-cols-[0.82fr_1.18fr] lg:items-end">
           <SectionHeading
@@ -42,7 +42,7 @@ export function ServicesSection() {
               return (
                 <div
                   key={item.title}
-                  className="rounded-[1.6rem] border border-[#E8D6DE] bg-[#FFF6F8] p-5"
+                  className="rounded-[1.6rem] border border-[#E8D6DE] bg-[#FFF6F8] p-5 premium-ring"
                 >
                   <Icon className="mb-4 size-6 text-[#A7353F]" />
                   <p className="font-heading text-xl text-[#2F2433]">
@@ -62,7 +62,7 @@ export function ServicesSection() {
             const Icon = serviceIcons[index % serviceIcons.length];
             return (
               <MotionCard key={service.id}>
-                <article className="h-full rounded-[1.75rem] border border-[#E8D6DE] bg-white p-6 shadow-[0_18px_50px_rgb(91_58_99/0.08)]">
+                <article className="h-full rounded-[1.75rem] border border-[#E8D6DE] bg-white p-6 shadow-[0_18px_50px_rgb(91_58_99/0.08)] transition-colors hover:border-[#DFA2BA]">
                   <div className="mb-7 flex items-center justify-between">
                     <span className="grid size-12 place-items-center rounded-2xl bg-[#F7F1FA] text-[#5B3A63]">
                       <Icon className="size-6" />

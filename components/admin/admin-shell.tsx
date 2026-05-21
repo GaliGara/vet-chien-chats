@@ -86,7 +86,7 @@ export function AdminShell({ title, description, children }: AdminShellProps) {
           </Link>
           <div className="flex items-center gap-2">
             {isPreview ? (
-              <span className="hidden rounded-full border border-[#D9C6E8] bg-[#F7F1FA] px-3 py-1 text-xs font-semibold text-[#5B3A63] sm:inline-flex">
+              <span className="rounded-full border border-[#D9C6E8] bg-[#F7F1FA] px-3 py-1 text-xs font-semibold text-[#5B3A63]">
                 Revision local
               </span>
             ) : null}
@@ -113,33 +113,15 @@ export function AdminShell({ title, description, children }: AdminShellProps) {
         </div>
         {hasAccess ? (
           <nav
-            className="mx-auto flex max-w-6xl gap-2 overflow-x-auto px-4 pb-3 sm:px-6"
+            className="mx-auto hidden max-w-6xl gap-2 overflow-x-auto px-4 pb-3 sm:flex sm:px-6"
             aria-label="Admin"
           >
-            {adminNavItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = pathname === item.href;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "inline-flex min-w-fit items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition",
-                    isActive
-                      ? "border-[#A7353F] bg-[#A7353F] text-[#FFFDFB]"
-                      : "border-[#E8D6DE] bg-white text-[#5B3A63] hover:bg-[#FFF6F8]"
-                  )}
-                >
-                  <Icon className="size-4" />
-                  {item.label}
-                </Link>
-              );
-            })}
+            <AdminNav pathname={pathname} />
           </nav>
         ) : null}
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+      <main className="mx-auto max-w-6xl px-4 py-6 pb-28 sm:px-6 sm:pb-8">
         {isLoading ? (
           <div className="rounded-[2rem] border border-[#E8D6DE] bg-white p-8">
             <div className="h-6 w-44 animate-pulse rounded-full bg-[#F7F1FA]" />
@@ -192,6 +174,51 @@ export function AdminShell({ title, description, children }: AdminShellProps) {
           </div>
         )}
       </main>
+
+      {hasAccess ? (
+        <nav
+          className="fixed inset-x-0 bottom-0 z-40 border-t border-[#E8D6DE] bg-[#FFFDFB]/94 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-18px_40px_rgb(91_58_99/0.10)] backdrop-blur-xl sm:hidden"
+          aria-label="Admin movil"
+        >
+          <AdminNav pathname={pathname} compact />
+        </nav>
+      ) : null}
+    </div>
+  );
+}
+
+function AdminNav({
+  pathname,
+  compact = false,
+}: {
+  pathname: string;
+  compact?: boolean;
+}) {
+  return (
+    <div className={cn("flex gap-2", compact && "grid grid-cols-4")}>
+      {adminNavItems.map((item) => {
+        const Icon = item.icon;
+        const isActive = pathname === item.href;
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            aria-current={isActive ? "page" : undefined}
+            className={cn(
+              "inline-flex min-w-fit items-center justify-center gap-2 rounded-full border font-semibold transition focus-visible:ring-3 focus-visible:ring-[#DFA2BA]/45",
+              compact
+                ? "min-w-0 flex-col gap-1 px-2 py-2 text-[0.68rem]"
+                : "px-4 py-2 text-sm",
+              isActive
+                ? "border-[#A7353F] bg-[#A7353F] text-[#FFFDFB]"
+                : "border-[#E8D6DE] bg-white text-[#5B3A63] hover:bg-[#FFF6F8]"
+            )}
+          >
+            <Icon className={cn("size-4", compact && "size-4")} />
+            <span className="truncate">{item.label}</span>
+          </Link>
+        );
+      })}
     </div>
   );
 }

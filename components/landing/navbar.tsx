@@ -15,13 +15,16 @@ import {
 
 export function Navbar() {
   return (
-    <header className="sticky top-0 z-40 border-b border-[#E8D6DE]/70 bg-[#FFFDFB]/88 backdrop-blur-xl">
+    <header className="sticky top-0 z-40 border-b border-[#E8D6DE]/70 bg-[#FFFDFB]/88 shadow-[0_10px_30px_rgb(91_58_99/0.04)] backdrop-blur-xl">
       <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <Link href="/#inicio" className="flex items-center gap-2">
-          <span className="grid size-9 place-items-center rounded-full bg-[#FFF6F8] text-[#A7353F] ring-1 ring-[#E8D6DE]">
+        <Link
+          href="/#inicio"
+          className="flex min-w-0 items-center gap-2 rounded-full focus-visible:ring-3 focus-visible:ring-[#DFA2BA]/45"
+        >
+          <span className="grid size-9 shrink-0 place-items-center rounded-full bg-[#FFF6F8] text-[#A7353F] ring-1 ring-[#E8D6DE]">
             <Heart className="size-4 fill-[#F7C8D9]" />
           </span>
-          <span className="font-heading text-xl font-semibold text-[#2F2433]">
+          <span className="truncate font-heading text-xl font-semibold text-[#2F2433]">
             {brand.name}
           </span>
         </Link>
@@ -31,7 +34,7 @@ export function Navbar() {
             <Link
               key={item.href}
               href={item.href}
-              className="text-sm font-medium text-[#7B6A80] transition hover:text-[#A7353F]"
+              className="rounded-full px-1 py-2 text-sm font-medium text-[#7B6A80] transition hover:text-[#A7353F] focus-visible:ring-3 focus-visible:ring-[#DFA2BA]/45"
             >
               {item.label}
             </Link>
@@ -59,13 +62,13 @@ export function Navbar() {
             <Button
               size="icon-lg"
               variant="outline"
-              className="rounded-full border-[#E8D6DE] bg-white/80 text-[#5B3A63] lg:hidden"
+              className="rounded-full border-[#E8D6DE] bg-white/80 text-[#5B3A63] shadow-sm lg:hidden"
               aria-label="Abrir menu"
             >
               <Menu className="size-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent className="w-[86vw] border-[#E8D6DE] bg-[#FFFDFB]">
+          <SheetContent className="w-[86vw] max-w-sm border-[#E8D6DE] bg-[#FFFDFB]">
             <SheetHeader className="border-b border-[#E8D6DE]">
               <SheetTitle className="font-heading text-xl text-[#2F2433]">
                 {brand.name}
@@ -76,7 +79,7 @@ export function Navbar() {
                 <SheetClose asChild key={item.href}>
                   <Link
                     href={item.href}
-                    className="rounded-2xl px-4 py-3 text-base font-medium text-[#5B3A63] transition hover:bg-[#FFF6F8]"
+                    className="rounded-2xl px-4 py-3 text-base font-medium text-[#5B3A63] transition hover:bg-[#FFF6F8] focus-visible:ring-3 focus-visible:ring-[#DFA2BA]/45"
                   >
                     {item.label}
                   </Link>
