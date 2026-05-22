@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { AdoptionsSection } from "@/components/landing/adoptions-section";
+import { FloatingAppointmentButton } from "@/components/landing/floating-appointment-button";
 import { Footer } from "@/components/landing/footer";
 import { Navbar } from "@/components/landing/navbar";
 
@@ -16,6 +17,7 @@ export default function AdopcionesPage() {
         <AdoptionsSection fullPage />
       </main>
       <Footer />
+      <FloatingAppointmentButton href="/#citas" />
     </div>
   );
 }

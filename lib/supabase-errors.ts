@@ -14,8 +14,13 @@ export function getSupabaseErrorMessage(error: unknown) {
   const message = supabaseError.message?.toLowerCase() ?? "";
   const code = supabaseError.code ?? "";
 
-  if (code === "42501" || message.includes("row-level security")) {
-    return "Supabase bloqueo la operacion por RLS. Revisa las policies documentadas en docs/supabase-policies.md.";
+  if (
+    code === "42501" ||
+    message.includes("row-level security") ||
+    message.includes("permission denied") ||
+    message.includes("unauthorized")
+  ) {
+    return "Supabase bloqueó la operación por RLS o permisos. En Revisión local esto es esperado para datos privados; inicia sesión con un admin o revisa docs/supabase-policies.md.";
   }
 
   if (code === "PGRST125" || message.includes("invalid path")) {

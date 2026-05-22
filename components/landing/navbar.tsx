@@ -15,8 +15,8 @@ import {
 
 export function Navbar() {
   return (
-    <header className="sticky top-0 z-40 border-b border-[#E8D6DE]/70 bg-[#FFFDFB]/88 shadow-[0_10px_30px_rgb(91_58_99/0.04)] backdrop-blur-xl">
-      <div className="mx-0 flex h-16 w-full max-w-[23rem] items-center justify-between px-4 sm:mx-auto sm:max-w-7xl sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-40 overflow-x-clip border-b border-[#E8D6DE]/70 bg-[#FFFDFB]/88 shadow-[0_10px_30px_rgb(91_58_99/0.04)] backdrop-blur-xl">
+      <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
         <Link
           href="/#inicio"
           className="flex min-w-0 items-center gap-2 rounded-full focus-visible:ring-3 focus-visible:ring-[#DFA2BA]/45"
@@ -62,7 +62,7 @@ export function Navbar() {
             <Button
               size="icon-lg"
               variant="outline"
-              className="rounded-full border-[#E8D6DE] bg-white/80 text-[#5B3A63] shadow-sm lg:hidden"
+              className="shrink-0 rounded-full border-[#E8D6DE] bg-white/80 text-[#5B3A63] shadow-sm lg:hidden"
               aria-label="Abrir menú"
             >
               <Menu className="size-5" />

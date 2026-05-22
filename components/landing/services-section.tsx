@@ -8,7 +8,7 @@ import {
   veterinaryServiceIcons,
 } from "@/constants/site";
 import type { Service } from "@/types/database";
-import { getServices } from "@/lib/supabase-queries";
+import { getActiveServices } from "@/lib/supabase-queries";
 import {
   AnimatedSection,
   MotionCard,
@@ -23,7 +23,7 @@ export function ServicesSection() {
   useEffect(() => {
     let isMounted = true;
 
-    getServices().then((data) => {
+    getActiveServices().then((data) => {
       if (isMounted && data.length > 0) {
         setServices(data);
       }

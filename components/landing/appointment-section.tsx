@@ -7,7 +7,7 @@ export function AppointmentSection() {
   return (
     <AnimatedSection
       id="citas"
-      className="bg-[#F7F1FA] px-4 py-18 sm:px-6 sm:py-20 lg:px-8"
+      className="scroll-mt-20 bg-[#F7F1FA] px-4 py-18 sm:px-6 sm:py-20 lg:px-8"
     >
       <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
         <div className="lg:sticky lg:top-24">

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { FloatingAppointmentButton } from "@/components/landing/floating-appointment-button";
 import { AppointmentSection } from "@/components/landing/appointment-section";
 import { Footer } from "@/components/landing/footer";
 import { Navbar } from "@/components/landing/navbar";
@@ -16,6 +17,7 @@ export default function CitasPage() {
         <AppointmentSection />
       </main>
       <Footer />
+      <FloatingAppointmentButton />
     </div>
   );
 }

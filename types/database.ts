@@ -1,8 +1,10 @@
 export type AppointmentStatus = "nueva" | "confirmada" | "cancelada" | "atendida";
 
-export type PetAdoptionStatus = "disponible" | "en_proceso" | "adoptado";
-
-export type ServiceStatus = "activo" | "inactivo";
+export type PetAdoptionStatus =
+  | "disponible"
+  | "en_proceso"
+  | "adoptado"
+  | "oculto";
 
 export type ContactChannel = "whatsapp" | "telefono" | "email";
 
@@ -33,6 +35,7 @@ export type PetForAdoption = {
   sex: string | null;
   short_description: string | null;
   description?: string | null;
+  requirements?: string | null;
   image_url: string | null;
   status: PetAdoptionStatus;
   created_at?: string | null;
@@ -45,11 +48,15 @@ export type Service = {
   name: string;
   description: string | null;
   price?: number | null;
+  price_from?: number | null;
   duration_minutes?: number | null;
-  status?: ServiceStatus | null;
+  active?: boolean | null;
   icon?: string | null;
+  sort_order?: number | null;
   created_at?: string | null;
 };
+
+export type ServiceInput = Omit<Service, "id" | "created_at">;
 
 export type AdminStats = {
   totalAppointments: number;

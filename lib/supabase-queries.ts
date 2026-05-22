@@ -7,9 +7,11 @@ import type {
   PetForAdoption,
   PetForAdoptionInput,
   Service,
+  ServiceInput,
 } from "@/types/database";
 
 type QueryOptions = {
+  activeOnly?: boolean;
   throwOnError?: boolean;
 };
 
@@ -30,14 +32,9 @@ export async function createAppointment(input: AppointmentInsert) {
     throw new Error("Supabase no está configurado.");
   }
 
-  const { data, error } = await supabase
-    .from("appointments")
-    .insert(input)
-    .select()
-    .single();
+  const { error } = await supabase.from("appointments").insert(input);
 
   if (error) throw error;
-  return data as Appointment;
 }
 
 export async function getAppointments(options?: QueryOptions) {
@@ -60,13 +57,20 @@ export async function updateAppointmentStatus(
   id: string,
   status: AppointmentStatus
 ) {
+  return updateAppointment(id, { status });
+}
+
+export async function updateAppointment(
+  id: string,
+  input: Partial<AppointmentInsert>
+) {
   if (!isSupabaseConfigured) {
     throw new Error("Supabase no está configurado.");
   }
 
   const { data, error } = await supabase
     .from("appointments")
-    .update({ status })
+    .update(input)
     .eq("id", id)
     .select()
     .single();
@@ -131,23 +135,24 @@ export async function updatePetForAdoption(
   return data as PetForAdoption;
 }
 
-export async function deletePetForAdoption(id: string) {
-  if (!isSupabaseConfigured) {
-    throw new Error("Supabase no está configurado.");
-  }
-
-  const { error } = await supabase.from("pets_for_adoption").delete().eq("id", id);
-
-  if (error) throw error;
+export async function archivePetForAdoption(id: string) {
+  return updatePetForAdoption(id, { status: "oculto" });
 }
 
 export async function getServices(options?: QueryOptions) {
   if (!isSupabaseConfigured) return [];
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("services")
     .select("*")
+    .order("sort_order", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: false });
+
+  if (options?.activeOnly) {
+    query = query.eq("active", true);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     handleQueryError("No se pudieron leer los servicios.", error, options);
@@ -155,6 +160,45 @@ export async function getServices(options?: QueryOptions) {
   }
 
   return (data ?? []) as Service[];
+}
+
+export async function getActiveServices(options?: QueryOptions) {
+  return getServices({ ...options, activeOnly: true });
+}
+
+export async function createService(input: ServiceInput) {
+  if (!isSupabaseConfigured) {
+    throw new Error("Supabase no está configurado.");
+  }
+
+  const { data, error } = await supabase
+    .from("services")
+    .insert(input)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as Service;
+}
+
+export async function updateService(id: string, input: Partial<ServiceInput>) {
+  if (!isSupabaseConfigured) {
+    throw new Error("Supabase no está configurado.");
+  }
+
+  const { data, error } = await supabase
+    .from("services")
+    .update(input)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as Service;
+}
+
+export async function toggleServiceActive(id: string, active: boolean) {
+  return updateService(id, { active });
 }
 
 export async function getAdminStats(): Promise<AdminStats> {
@@ -185,7 +229,7 @@ export async function getAdminStats(): Promise<AdminStats> {
     supabase
       .from("services")
       .select("id", { count: "exact", head: true })
-      .eq("status", "activo"),
+      .eq("active", true),
   ]);
 
   const results = [

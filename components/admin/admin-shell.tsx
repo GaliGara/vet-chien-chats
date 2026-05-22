@@ -141,6 +141,13 @@ export function AdminShell({ title, description, children }: AdminShellProps) {
                 {description}
               </p>
             </div>
+            {isPreview ? (
+              <div className="mb-5 rounded-[1.5rem] border border-[#D9C6E8] bg-[#F7F1FA]/75 p-4 text-sm leading-6 text-[#5B3A63]">
+                Estás en <strong>Revisión local</strong>. Esta vista sirve para
+                validar la interfaz; las citas reales y datos privados requieren
+                iniciar sesión con Supabase Auth y policies de admin.
+              </div>
+            ) : null}
             {children}
           </>
         ) : (

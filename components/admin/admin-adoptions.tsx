@@ -3,7 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useEffect, useMemo, useState } from "react";
-import { Cat, Dog, Edit3, Loader2, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { Cat, Dog, Edit3, EyeOff, Loader2, Plus, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import {
   petStatusLabels,
@@ -15,8 +15,8 @@ import type {
   PetForAdoptionInput,
 } from "@/types/database";
 import {
+  archivePetForAdoption,
   createPetForAdoption,
-  deletePetForAdoption,
   getPetsForAdoption,
   updatePetForAdoption,
 } from "@/lib/supabase-queries";
@@ -42,6 +42,7 @@ type PetFormState = {
   age: string;
   sex: string;
   short_description: string;
+  requirements: string;
   image_url: string;
   status: PetAdoptionStatus;
 };
@@ -53,6 +54,7 @@ const emptyPetForm: PetFormState = {
   age: "",
   sex: "",
   short_description: "",
+  requirements: "",
   image_url: "",
   status: "disponible",
 };
@@ -116,19 +118,21 @@ export function AdminAdoptions() {
     setDialogOpen(true);
   }
 
-  async function handleDelete(pet: PetForAdoption) {
+  async function handleArchive(pet: PetForAdoption) {
     const confirmed = window.confirm(
-      `¿Eliminar el perfil de ${pet.name}? Esta acción no se puede deshacer.`
+      `¿Ocultar el perfil de ${pet.name}? Ya no aparecerá como disponible para adopción.`
     );
 
     if (!confirmed) return;
 
     try {
-      await deletePetForAdoption(pet.id);
-      setPets((current) => current.filter((item) => item.id !== pet.id));
-      toast.success("Mascota eliminada");
+      const updated = await archivePetForAdoption(pet.id);
+      setPets((current) =>
+        current.map((item) => (item.id === pet.id ? { ...item, ...updated } : item))
+      );
+      toast.success("Mascota oculta");
     } catch (error) {
-      toast.error("No se pudo eliminar", {
+      toast.error("No se pudo ocultar", {
         description: getSupabaseErrorMessage(error),
       });
     }
@@ -241,7 +245,7 @@ export function AdminAdoptions() {
               key={pet.id}
               pet={pet}
               onEdit={openEditDialog}
-              onDelete={handleDelete}
+              onArchive={handleArchive}
               onStatusChange={handleStatusChange}
             />
           ))}
@@ -259,12 +263,12 @@ export function AdminAdoptions() {
 function PetAdminCard({
   pet,
   onEdit,
-  onDelete,
+  onArchive,
   onStatusChange,
 }: {
   pet: PetForAdoption;
   onEdit: (pet: PetForAdoption) => void;
-  onDelete: (pet: PetForAdoption) => void;
+  onArchive: (pet: PetForAdoption) => void;
   onStatusChange: (pet: PetForAdoption, status: PetAdoptionStatus) => void;
 }) {
   return (
@@ -299,11 +303,11 @@ function PetAdminCard({
               type="button"
               variant="outline"
               size="icon-lg"
-              onClick={() => onDelete(pet)}
+              onClick={() => onArchive(pet)}
               className="rounded-full border-[#E8D6DE] bg-white text-[#A7353F]"
-              aria-label={`Eliminar ${pet.name}`}
+              aria-label={`Ocultar ${pet.name}`}
             >
-              <Trash2 className="size-4" />
+              <EyeOff className="size-4" />
             </Button>
           </div>
         </div>
@@ -316,6 +320,16 @@ function PetAdminCard({
         <p className="mt-4 text-sm leading-7 text-[#7B6A80]">
           {pet.short_description ?? pet.description ?? "Sin descripción breve."}
         </p>
+        {pet.requirements ? (
+          <div className="mt-4 rounded-[1.3rem] bg-[#FFF6F8] p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#A7353F]">
+              Requisitos
+            </p>
+            <p className="mt-2 text-sm leading-6 text-[#7B6A80]">
+              {pet.requirements}
+            </p>
+          </div>
+        ) : null}
 
         <select
           aria-label={`Cambiar status de adopción de ${pet.name}`}
@@ -378,6 +392,7 @@ function PetForm({
           age: pet.age ?? "",
           sex: pet.sex ?? "",
           short_description: pet.short_description ?? pet.description ?? "",
+          requirements: pet.requirements ?? "",
           image_url: pet.image_url ?? "",
           status: pet.status,
         }
@@ -405,6 +420,7 @@ function PetForm({
       sex: form.sex.trim() || null,
       short_description: form.short_description.trim() || null,
       description: form.short_description.trim() || null,
+      requirements: form.requirements.trim() || null,
       image_url: form.image_url.trim() || null,
       status: form.status,
     };
@@ -492,6 +508,18 @@ function PetForm({
             updateField("short_description", event.target.value)
           }
           className="min-h-28 rounded-2xl border-[#E8D6DE] bg-white"
+        />
+      </label>
+
+      <label>
+        <span className="mb-2 block text-sm font-semibold text-[#5B3A63]">
+          Requisitos
+        </span>
+        <Textarea
+          value={form.requirements}
+          onChange={(event) => updateField("requirements", event.target.value)}
+          className="min-h-24 rounded-2xl border-[#E8D6DE] bg-white"
+          placeholder="Ej. hogar seguro, entrevista, seguimiento..."
         />
       </label>
 

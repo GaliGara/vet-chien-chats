@@ -1,20 +1,46 @@
 # Supabase schema y RLS
 
-Estas notas son para ejecutar manualmente en Supabase SQL Editor.
+Estas notas son para ejecutar manualmente en Supabase SQL Editor. No ejecutes
+service role ni secret keys desde el frontend.
 
 El frontend usa solo:
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `NEXT_PUBLIC_WHATSAPP_NUMBER`, opcional
 
-No uses `service_role` ni secret keys en el navegador.
+Importante: el formulario publico de citas hace un `insert` simple en
+`appointments`. No usa `.select()`, `.single()` ni intenta leer la fila creada.
 
-## Variables
+## Admin allowlist
 
-```bash
-NEXT_PUBLIC_SUPABASE_URL=https://tu-proyecto.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=tu-anon-key-publica
-NEXT_PUBLIC_WHATSAPP_NUMBER=525500000000 # opcional
+La recomendacion actual es usar una allowlist por correo en `app_admins`.
+
+```sql
+create table if not exists public.app_admins (
+  email text primary key,
+  created_at timestamptz not null default now()
+);
+
+alter table public.app_admins enable row level security;
+
+insert into public.app_admins (email)
+values ('tu-admin@email.com')
+on conflict (email) do nothing;
+
+create or replace function public.is_app_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.app_admins
+    where lower(email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+  );
+$$;
 ```
 
 ## Schema sugerido
@@ -55,61 +81,81 @@ create table if not exists public.pets_for_adoption (
   sex text,
   short_description text,
   description text,
+  requirements text,
   image_url text,
   status text not null default 'disponible',
   created_at timestamptz not null default now(),
   constraint pets_for_adoption_status_check
-    check (status in ('disponible', 'en_proceso', 'adoptado'))
+    check (status in ('disponible', 'en_proceso', 'adoptado', 'oculto'))
 );
 ```
 
 ### services
+
+El codigo actual usa `active boolean`, no `status`.
 
 ```sql
 create table if not exists public.services (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   description text,
-  price numeric,
+  price_from numeric,
   duration_minutes integer,
-  status text not null default 'activo',
+  active boolean not null default true,
   icon text,
-  created_at timestamptz not null default now(),
-  constraint services_status_check
-    check (status in ('activo', 'inactivo'))
+  sort_order integer,
+  created_at timestamptz not null default now()
 );
 ```
 
-### Servicios iniciales sugeridos
+### contact_messages, opcional
 
 ```sql
-insert into public.services (name, description, duration_minutes, status, icon)
-values
-  ('Consulta médica veterinaria', 'Valoración clínica para perros y gatos con trato sereno.', 45, 'activo', 'stethoscope'),
-  ('Estética canina, baño y cuidado', 'Baño, corte y cuidado de piel y pelaje con mucha delicadeza.', 90, 'activo', 'bath'),
-  ('Vacunación', 'Aplicación y seguimiento de esquemas preventivos.', 30, 'activo', 'syringe'),
-  ('Desparasitación', 'Cuidado preventivo para bienestar y tranquilidad en casa.', 25, 'activo', 'heart-pulse'),
-  ('Acompañamiento en adopciones', 'Proceso responsable, humano y guiado de principio a fin.', 60, 'activo', 'paw');
+create table if not exists public.contact_messages (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  phone text,
+  email text,
+  message text not null,
+  status text not null default 'nuevo',
+  created_at timestamptz not null default now(),
+  constraint contact_messages_status_check
+    check (status in ('nuevo', 'leido', 'respondido', 'archivado'))
+);
 ```
 
-## RLS básico
+## Servicios iniciales sugeridos
 
-Este bloque permite:
+```sql
+insert into public.services (name, description, duration_minutes, active, icon, sort_order)
+values
+  ('Consulta medica', 'Valoracion clinica para perros y gatos con trato sereno.', 45, true, 'stethoscope', 10),
+  ('Baño', 'Baño y cuidado de piel y pelaje con mucha delicadeza.', 60, true, 'bath', 20),
+  ('Corte de pelo', 'Corte estetico canino con trato tranquilo y profesional.', 75, true, 'scissors', 30),
+  ('Baño + corte', 'Servicio completo de baño, corte y cuidado.', 90, true, 'sparkles', 40),
+  ('Vacunacion', 'Aplicacion y seguimiento de esquemas preventivos.', 30, true, 'syringe', 50),
+  ('Desparasitacion', 'Cuidado preventivo para bienestar y tranquilidad en casa.', 25, true, 'heart-pulse', 60),
+  ('Seguimiento medico', 'Revision y acompañamiento posterior a consulta.', 40, true, 'heart-pulse', 70),
+  ('Proceso de adopcion', 'Proceso responsable, humano y guiado de principio a fin.', 60, true, 'paw', 80);
+```
 
-1. insertar citas desde anon
-2. leer adopciones disponibles desde anon
-3. leer servicios activos desde anon
-4. leer/editar citas con usuario autenticado
-5. crear/editar/eliminar adopciones con usuario autenticado
-
-Importante: estas policies tratan a cualquier usuario autenticado como admin.
-Para producción, agrega una tabla de perfiles/roles o allowlist.
+## RLS recomendado
 
 ```sql
 alter table public.appointments enable row level security;
 alter table public.pets_for_adoption enable row level security;
 alter table public.services enable row level security;
 
+-- Si usas contact_messages:
+alter table public.contact_messages enable row level security;
+```
+
+### appointments
+
+Anon y usuarios autenticados pueden crear citas. Nadie publico puede leer citas.
+El panel admin requiere Supabase Auth y `public.is_app_admin()`.
+
+```sql
 drop policy if exists "Public can create appointments" on public.appointments;
 create policy "Public can create appointments"
 on public.appointments
@@ -120,21 +166,46 @@ with check (
   and contact_channel in ('whatsapp', 'telefono', 'email')
 );
 
-drop policy if exists "Authenticated can read appointments" on public.appointments;
-create policy "Authenticated can read appointments"
+drop policy if exists "Admins can create appointments" on public.appointments;
+create policy "Admins can create appointments"
+on public.appointments
+for insert
+to authenticated
+with check (
+  public.is_app_admin()
+  and status in ('nueva', 'confirmada', 'cancelada', 'atendida')
+  and contact_channel in ('whatsapp', 'telefono', 'email')
+);
+
+drop policy if exists "Admins can read appointments" on public.appointments;
+create policy "Admins can read appointments"
 on public.appointments
 for select
 to authenticated
-using (true);
+using (public.is_app_admin());
 
-drop policy if exists "Authenticated can update appointments" on public.appointments;
-create policy "Authenticated can update appointments"
+drop policy if exists "Admins can update appointments" on public.appointments;
+create policy "Admins can update appointments"
 on public.appointments
 for update
 to authenticated
-using (true)
-with check (status in ('nueva', 'confirmada', 'cancelada', 'atendida'));
+using (public.is_app_admin())
+with check (
+  public.is_app_admin()
+  and status in ('nueva', 'confirmada', 'cancelada', 'atendida')
+);
 
+drop policy if exists "Admins can delete appointments" on public.appointments;
+create policy "Admins can delete appointments"
+on public.appointments
+for delete
+to authenticated
+using (public.is_app_admin());
+```
+
+### pets_for_adoption
+
+```sql
 drop policy if exists "Public can read available pets" on public.pets_for_adoption;
 create policy "Public can read available pets"
 on public.pets_for_adoption
@@ -142,74 +213,63 @@ for select
 to anon, authenticated
 using (status = 'disponible');
 
-drop policy if exists "Authenticated can read all pets" on public.pets_for_adoption;
-create policy "Authenticated can read all pets"
+drop policy if exists "Admins can manage pets" on public.pets_for_adoption;
+create policy "Admins can manage pets"
 on public.pets_for_adoption
-for select
+for all
 to authenticated
-using (true);
+using (public.is_app_admin())
+with check (
+  public.is_app_admin()
+  and status in ('disponible', 'en_proceso', 'adoptado', 'oculto')
+);
+```
 
-drop policy if exists "Authenticated can insert pets" on public.pets_for_adoption;
-create policy "Authenticated can insert pets"
-on public.pets_for_adoption
-for insert
-to authenticated
-with check (status in ('disponible', 'en_proceso', 'adoptado'));
+### services
 
-drop policy if exists "Authenticated can update pets" on public.pets_for_adoption;
-create policy "Authenticated can update pets"
-on public.pets_for_adoption
-for update
-to authenticated
-using (true)
-with check (status in ('disponible', 'en_proceso', 'adoptado'));
-
-drop policy if exists "Authenticated can delete pets" on public.pets_for_adoption;
-create policy "Authenticated can delete pets"
-on public.pets_for_adoption
-for delete
-to authenticated
-using (true);
-
+```sql
 drop policy if exists "Public can read active services" on public.services;
 create policy "Public can read active services"
 on public.services
 for select
 to anon, authenticated
-using (status = 'activo');
+using (active = true);
 
-drop policy if exists "Authenticated can read all services" on public.services;
-create policy "Authenticated can read all services"
+drop policy if exists "Admins can manage services" on public.services;
+create policy "Admins can manage services"
 on public.services
-for select
+for all
 to authenticated
-using (true);
+using (public.is_app_admin())
+with check (public.is_app_admin());
 ```
 
-## Opcion mas segura para admin
-
-Antes de producción, puedes crear una tabla `admin_users` y reemplazar las
-policies autenticadas por checks de admin:
+### contact_messages, opcional
 
 ```sql
-create table if not exists public.admin_users (
-  user_id uuid primary key references auth.users(id) on delete cascade,
-  created_at timestamptz not null default now()
-);
+drop policy if exists "Public can create contact messages" on public.contact_messages;
+create policy "Public can create contact messages"
+on public.contact_messages
+for insert
+to anon, authenticated
+with check (status = 'nuevo');
 
-create or replace function public.is_admin()
-returns boolean
-language sql
-security definer
-set search_path = public
-as $$
-  select exists (
-    select 1
-    from public.admin_users
-    where user_id = auth.uid()
-  );
-$$;
+drop policy if exists "Admins can manage contact messages" on public.contact_messages;
+create policy "Admins can manage contact messages"
+on public.contact_messages
+for all
+to authenticated
+using (public.is_app_admin())
+with check (public.is_app_admin());
 ```
 
-Luego cambia `using (true)` por `using (public.is_admin())` y los `with check`
-por `with check (public.is_admin() and ...)` donde aplique.
+## Notas de verificacion
+
+- `appointments`: el cliente anon solo debe insertar. No agregues policy publica
+  de `select`.
+- `/admin/citas`: si RLS bloquea, revisa que el usuario este autenticado y que
+  su correo exista en `public.app_admins`.
+- `services`: la landing consulta servicios con `active = true`.
+- `services`: el admin usa `price_from`, `active` y `sort_order`; no usa `status`.
+- `pets_for_adoption`: la landing solo debe leer mascotas `disponible`; el admin
+  puede cambiar mascotas a `oculto` para archivarlas sin borrarlas.

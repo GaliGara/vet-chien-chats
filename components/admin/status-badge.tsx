@@ -14,6 +14,7 @@ const statusClassName = {
   disponible: "border-[#D9C6E8] bg-[#F7F1FA] text-[#5B3A63]",
   en_proceso: "border-[#F7C8D9] bg-[#FFF6F8] text-[#A7353F]",
   adoptado: "border-[#E8D6DE] bg-white text-[#7B6A80]",
+  oculto: "border-[#E8D6DE] bg-white text-[#2F2433]",
 };
 
 export function AppointmentStatusBadge({

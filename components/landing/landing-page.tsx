@@ -1,6 +1,7 @@
 import { AdoptionsSection } from "@/components/landing/adoptions-section";
 import { AppointmentSection } from "@/components/landing/appointment-section";
 import { FinalCta } from "@/components/landing/final-cta";
+import { FloatingAppointmentButton } from "@/components/landing/floating-appointment-button";
 import { Footer } from "@/components/landing/footer";
 import { Hero } from "@/components/landing/hero";
 import { Navbar } from "@/components/landing/navbar";
@@ -22,6 +23,7 @@ export function LandingPage() {
         <FinalCta />
       </main>
       <Footer />
+      <FloatingAppointmentButton />
     </div>
   );
 }
