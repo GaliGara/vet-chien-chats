@@ -98,41 +98,51 @@ export function Hero() {
           }
           className="relative mx-auto w-full max-w-[20.5rem] min-[390px]:max-w-[22rem] sm:max-w-[520px] lg:max-w-[560px] lg:justify-self-end"
         >
-          <div className="grid gap-3 sm:hidden">
-            <div className="rounded-[1.6rem] border border-[#E8D6DE] bg-white/82 p-4 shadow-[0_18px_48px_rgb(91_58_99/0.10)] backdrop-blur">
-              <div className="flex items-center gap-3">
-                <span className="grid size-12 place-items-center rounded-2xl bg-[#FFF6F8] text-[#A7353F]">
-                  <Stethoscope className="size-6" />
-                </span>
-                <div>
-                  <p className="font-heading text-2xl text-[#2F2433]">
-                    Consulta y cuidado
-                  </p>
-                  <p className="text-sm text-[#7B6A80]">
-                    atención médica, estética y adopción
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-[1.4rem] border border-[#E8D6DE] bg-[#FFFDFB]/86 p-4 text-center shadow-sm">
-                <Dog className="mx-auto mb-2 size-7 text-[#5B3A63]" />
-                <p className="text-sm font-semibold text-[#5B3A63]">Perros</p>
-              </div>
-              <div className="rounded-[1.4rem] border border-[#E8D6DE] bg-[#FFFDFB]/86 p-4 text-center shadow-sm">
-                <Cat className="mx-auto mb-2 size-7 text-[#A7353F]" />
-                <p className="text-sm font-semibold text-[#5B3A63]">Gatos</p>
-              </div>
-            </div>
-            <div className="rounded-[1.6rem] border border-white/70 bg-white/88 p-4 shadow-[0_14px_40px_rgb(91_58_99/0.08)] backdrop-blur">
-              <div className="flex items-start gap-3">
-                <span className="grid size-10 shrink-0 place-items-center rounded-full bg-[#FFF6F8] text-[#A7353F]">
-                  <Heart className="size-5 fill-[#F7C8D9]" />
-                </span>
-                <p className="text-sm leading-6 text-[#7B6A80]">
-                  Acompañamiento sensible para reservar, cuidar y adoptar con
-                  claridad.
+          <div className="relative mx-auto h-[15.5rem] w-full max-w-[20.5rem] sm:hidden">
+            <motion.div
+              className="absolute left-1/2 top-1 grid size-28 -translate-x-1/2 place-items-center rounded-full border border-white/80 bg-white/86 text-[#A7353F] shadow-[0_18px_42px_rgb(91_58_99/0.10)] backdrop-blur"
+              animate={shouldReduceMotion ? undefined : { y: [0, -4, 0] }}
+              transition={
+                shouldReduceMotion
+                  ? undefined
+                  : { duration: 7.5, repeat: Infinity, ease: "easeInOut" }
+              }
+            >
+              <div className="text-center">
+                <Stethoscope className="mx-auto size-8" />
+                <p className="mt-2 font-heading text-xl text-[#2F2433]">
+                  Cuidado
                 </p>
+              </div>
+            </motion.div>
+            <motion.div
+              className="absolute left-2 top-24 rounded-[1.35rem] border border-[#E8D6DE] bg-[#FFFDFB]/90 px-4 py-3 shadow-[0_14px_34px_rgb(91_58_99/0.08)] backdrop-blur"
+              animate={shouldReduceMotion ? undefined : { y: [0, 4, 0] }}
+              transition={
+                shouldReduceMotion
+                  ? undefined
+                  : { duration: 8.5, repeat: Infinity, ease: "easeInOut" }
+              }
+            >
+              <Dog className="mb-1 size-6 text-[#5B3A63]" />
+              <p className="text-sm font-semibold text-[#5B3A63]">Perros</p>
+            </motion.div>
+            <motion.div
+              className="absolute right-2 top-24 rounded-[1.35rem] border border-[#E8D6DE] bg-[#FFFDFB]/90 px-4 py-3 shadow-[0_14px_34px_rgb(91_58_99/0.08)] backdrop-blur"
+              animate={shouldReduceMotion ? undefined : { y: [0, -3, 0] }}
+              transition={
+                shouldReduceMotion
+                  ? undefined
+                  : { duration: 8, repeat: Infinity, ease: "easeInOut" }
+              }
+            >
+              <Cat className="mb-1 size-6 text-[#A7353F]" />
+              <p className="text-sm font-semibold text-[#5B3A63]">Gatos</p>
+            </motion.div>
+            <div className="absolute inset-x-5 bottom-2 rounded-full border border-white/80 bg-white/88 px-4 py-3 shadow-[0_14px_36px_rgb(91_58_99/0.08)] backdrop-blur">
+              <div className="flex items-center justify-center gap-2 text-sm font-semibold text-[#5B3A63]">
+                <Heart className="size-4 fill-[#F7C8D9] text-[#A7353F]" />
+                Reserva, cuidado y adopción
               </div>
             </div>
           </div>

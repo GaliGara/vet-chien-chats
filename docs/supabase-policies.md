@@ -79,12 +79,12 @@ create table if not exists public.pets_for_adoption (
   breed text,
   age text,
   sex text,
-  short_description text,
   description text,
   requirements text,
   image_url text,
   status text not null default 'disponible',
   created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
   constraint pets_for_adoption_status_check
     check (status in ('disponible', 'en_proceso', 'adoptado', 'oculto'))
 );
@@ -137,6 +137,43 @@ values
   ('Desparasitacion', 'Cuidado preventivo para bienestar y tranquilidad en casa.', 25, true, 'heart-pulse', 60),
   ('Seguimiento medico', 'Revision y acompañamiento posterior a consulta.', 40, true, 'heart-pulse', 70),
   ('Proceso de adopcion', 'Proceso responsable, humano y guiado de principio a fin.', 60, true, 'paw', 80);
+```
+
+## Supabase Storage
+
+El admin de adopciones sube imagenes al bucket publico `adoption-pets` y guarda
+la URL publica en `pets_for_adoption.image_url`.
+
+Puedes crear el bucket desde Supabase Dashboard:
+
+1. Storage > New bucket.
+2. Nombre: `adoption-pets`.
+3. Public bucket: activado.
+4. File size limit recomendado: `5 MB`.
+5. MIME types recomendados: `image/png`, `image/jpeg`, `image/webp`.
+
+SQL opcional para crear/actualizar el bucket:
+
+```sql
+insert into storage.buckets (
+  id,
+  name,
+  public,
+  file_size_limit,
+  allowed_mime_types
+)
+values (
+  'adoption-pets',
+  'adoption-pets',
+  true,
+  5242880,
+  array['image/png', 'image/jpeg', 'image/webp']
+)
+on conflict (id) do update
+set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
 ```
 
 ## RLS recomendado
@@ -263,6 +300,48 @@ using (public.is_app_admin())
 with check (public.is_app_admin());
 ```
 
+### storage.objects para adoption-pets
+
+Estas policies permiten que solo admins autenticados suban, reemplacen o borren
+imagenes del bucket. El bucket se recomienda publico para que la landing pueda
+mostrar `image_url` sin firmar URLs.
+
+```sql
+drop policy if exists "Admins can upload adoption pet images" on storage.objects;
+create policy "Admins can upload adoption pet images"
+on storage.objects
+for insert
+to authenticated
+with check (
+  bucket_id = 'adoption-pets'
+  and public.is_app_admin()
+);
+
+drop policy if exists "Admins can update adoption pet images" on storage.objects;
+create policy "Admins can update adoption pet images"
+on storage.objects
+for update
+to authenticated
+using (
+  bucket_id = 'adoption-pets'
+  and public.is_app_admin()
+)
+with check (
+  bucket_id = 'adoption-pets'
+  and public.is_app_admin()
+);
+
+drop policy if exists "Admins can delete adoption pet images" on storage.objects;
+create policy "Admins can delete adoption pet images"
+on storage.objects
+for delete
+to authenticated
+using (
+  bucket_id = 'adoption-pets'
+  and public.is_app_admin()
+);
+```
+
 ## Notas de verificacion
 
 - `appointments`: el cliente anon solo debe insertar. No agregues policy publica
@@ -273,3 +352,5 @@ with check (public.is_app_admin());
 - `services`: el admin usa `price_from`, `active` y `sort_order`; no usa `status`.
 - `pets_for_adoption`: la landing solo debe leer mascotas `disponible`; el admin
   puede cambiar mascotas a `oculto` para archivarlas sin borrarlas.
+- `storage`: crea `adoption-pets` como public bucket antes de probar upload en
+  `/admin/adopciones`.

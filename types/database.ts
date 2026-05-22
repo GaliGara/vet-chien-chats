@@ -33,15 +33,18 @@ export type PetForAdoption = {
   breed: string | null;
   age: string | null;
   sex: string | null;
-  short_description: string | null;
-  description?: string | null;
+  description: string | null;
   requirements?: string | null;
   image_url: string | null;
   status: PetAdoptionStatus;
   created_at?: string | null;
+  updated_at?: string | null;
 };
 
-export type PetForAdoptionInput = Omit<PetForAdoption, "id" | "created_at">;
+export type PetForAdoptionInput = Omit<
+  PetForAdoption,
+  "id" | "created_at" | "updated_at"
+>;
 
 export type Service = {
   id: string;

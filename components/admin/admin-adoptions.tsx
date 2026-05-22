@@ -2,8 +2,18 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import { useEffect, useMemo, useState } from "react";
-import { Cat, Dog, Edit3, EyeOff, Loader2, Plus, RefreshCw } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Cat,
+  Dog,
+  Edit3,
+  EyeOff,
+  ImagePlus,
+  Loader2,
+  Plus,
+  RefreshCw,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import {
   petStatusLabels,
@@ -21,6 +31,10 @@ import {
   updatePetForAdoption,
 } from "@/lib/supabase-queries";
 import { getSupabaseErrorMessage } from "@/lib/supabase-errors";
+import {
+  uploadAdoptionPetImage,
+  validateAdoptionImage,
+} from "@/lib/supabase-storage";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AdminNotice } from "@/components/admin/admin-notice";
 import { PetStatusBadge } from "@/components/admin/status-badge";
@@ -41,7 +55,7 @@ type PetFormState = {
   breed: string;
   age: string;
   sex: string;
-  short_description: string;
+  description: string;
   requirements: string;
   image_url: string;
   status: PetAdoptionStatus;
@@ -53,7 +67,7 @@ const emptyPetForm: PetFormState = {
   breed: "",
   age: "",
   sex: "",
-  short_description: "",
+  description: "",
   requirements: "",
   image_url: "",
   status: "disponible",
@@ -318,7 +332,7 @@ function PetAdminCard({
         </div>
 
         <p className="mt-4 text-sm leading-7 text-[#7B6A80]">
-          {pet.short_description ?? pet.description ?? "Sin descripción breve."}
+          {pet.description ?? "Sin descripción breve."}
         </p>
         {pet.requirements ? (
           <div className="mt-4 rounded-[1.3rem] bg-[#FFF6F8] p-4">
@@ -391,7 +405,7 @@ function PetForm({
           breed: pet.breed ?? "",
           age: pet.age ?? "",
           sex: pet.sex ?? "",
-          short_description: pet.short_description ?? pet.description ?? "",
+          description: pet.description ?? "",
           requirements: pet.requirements ?? "",
           image_url: pet.image_url ?? "",
           status: pet.status,
@@ -399,9 +413,59 @@ function PetForm({
       : emptyPetForm
   );
   const [isSaving, setIsSaving] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState(pet?.image_url ?? "");
+  const [imageRemoved, setImageRemoved] = useState(false);
+  const objectUrlRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+      }
+    };
+  }, []);
 
   function updateField(field: keyof PetFormState, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      validateAdoptionImage(file);
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+      }
+
+      const objectUrl = URL.createObjectURL(file);
+      objectUrlRef.current = objectUrl;
+      setSelectedFile(file);
+      setPreviewUrl(objectUrl);
+      setImageRemoved(false);
+    } catch (error) {
+      event.currentTarget.value = "";
+      toast.error("Imagen no válida", {
+        description:
+          error instanceof Error
+            ? error.message
+            : "Sube una imagen PNG, JPG o WebP de máximo 5 MB.",
+      });
+    }
+  }
+
+  function removeImage() {
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+      objectUrlRef.current = null;
+    }
+
+    setSelectedFile(null);
+    setPreviewUrl("");
+    setImageRemoved(true);
+    setForm((current) => ({ ...current, image_url: "" }));
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -412,21 +476,26 @@ function PetForm({
       return;
     }
 
-    const payload: PetForAdoptionInput = {
-      name: form.name.trim(),
-      species: form.species.trim(),
-      breed: form.breed.trim() || null,
-      age: form.age.trim() || null,
-      sex: form.sex.trim() || null,
-      short_description: form.short_description.trim() || null,
-      description: form.short_description.trim() || null,
-      requirements: form.requirements.trim() || null,
-      image_url: form.image_url.trim() || null,
-      status: form.status,
-    };
-
     setIsSaving(true);
     try {
+      let imageUrl = imageRemoved ? null : form.image_url.trim() || null;
+
+      if (selectedFile) {
+        imageUrl = await uploadAdoptionPetImage(selectedFile, form.name.trim());
+      }
+
+      const payload: PetForAdoptionInput = {
+        name: form.name.trim(),
+        species: form.species.trim(),
+        breed: form.breed.trim() || null,
+        age: form.age.trim() || null,
+        sex: form.sex.trim() || null,
+        description: form.description.trim() || null,
+        requirements: form.requirements.trim() || null,
+        image_url: imageUrl,
+        status: form.status,
+      };
+
       const savedPet = pet
         ? await updatePetForAdoption(pet.id, payload)
         : await createPetForAdoption(payload);
@@ -492,21 +561,67 @@ function PetForm({
         </label>
       </div>
 
-      <TextField
-        label="Imagen URL"
-        value={form.image_url}
-        onChange={(value) => updateField("image_url", value)}
-      />
+      <div className="rounded-[1.6rem] border border-dashed border-[#E8D6DE] bg-[#FFF6F8]/55 p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-[#5B3A63]">
+              Foto de adopción
+            </p>
+            <p className="mt-1 text-xs leading-5 text-[#7B6A80]">
+              PNG, JPG o WebP. Tamaño máximo 5 MB.
+            </p>
+          </div>
+          {previewUrl ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={removeImage}
+              className="rounded-full text-[#A7353F] hover:bg-white"
+              aria-label="Quitar imagen"
+            >
+              <X className="size-4" />
+            </Button>
+          ) : null}
+        </div>
+
+        {previewUrl ? (
+          <div className="mt-4 overflow-hidden rounded-[1.4rem] border border-white/80 bg-white shadow-sm">
+            <img
+              src={previewUrl}
+              alt="Preview de foto de adopción"
+              className="aspect-[5/3] w-full object-cover"
+            />
+          </div>
+        ) : (
+          <div className="mt-4 grid min-h-40 place-items-center rounded-[1.4rem] border border-white/80 bg-white/75 text-center">
+            <div>
+              <ImagePlus className="mx-auto size-8 text-[#A7353F]" />
+              <p className="mt-2 text-sm font-semibold text-[#5B3A63]">
+                Agrega una foto luminosa
+              </p>
+              <p className="mt-1 text-xs text-[#7B6A80]">
+                También puedes guardar sin imagen.
+              </p>
+            </div>
+          </div>
+        )}
+
+        <Input
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          onChange={handleFileChange}
+          className="mt-4 h-12 cursor-pointer rounded-2xl border-[#E8D6DE] bg-white file:mr-4 file:rounded-full file:border-0 file:bg-[#F7F1FA] file:px-4 file:py-2 file:text-sm file:font-semibold file:text-[#5B3A63]"
+        />
+      </div>
 
       <label>
         <span className="mb-2 block text-sm font-semibold text-[#5B3A63]">
           Descripcion breve
         </span>
         <Textarea
-          value={form.short_description}
-          onChange={(event) =>
-            updateField("short_description", event.target.value)
-          }
+          value={form.description}
+          onChange={(event) => updateField("description", event.target.value)}
           className="min-h-28 rounded-2xl border-[#E8D6DE] bg-white"
         />
       </label>
@@ -528,7 +643,11 @@ function PetForm({
         className="h-12 rounded-full bg-[#A7353F] text-[#FFFDFB] hover:bg-[#8E2D36]"
       >
         {isSaving ? <Loader2 className="size-4 animate-spin" /> : null}
-        {pet ? "Guardar cambios" : "Crear adopción"}
+        {isSaving && selectedFile
+          ? "Subiendo imagen..."
+          : pet
+            ? "Guardar cambios"
+            : "Crear adopción"}
       </Button>
     </form>
   );

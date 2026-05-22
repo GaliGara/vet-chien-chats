@@ -140,8 +140,7 @@ export function PetCard({ pet }: { pet: PetForAdoption }) {
             ) : null}
           </div>
           <p className="mt-4 line-clamp-3 text-sm leading-7 text-[#7B6A80]">
-            {pet.short_description ??
-              pet.description ??
+            {pet.description ??
               "Perfil en preparación con acompañamiento para encontrar la familia ideal."}
           </p>
         </div>

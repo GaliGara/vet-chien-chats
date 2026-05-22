@@ -116,8 +116,11 @@ export function AppointmentForm() {
 
     try {
       await createAppointment(payload);
+      const emailSent = await notifyAppointmentEmails(payload);
       toast.success("Cita registrada", {
-        description: "Te contactaremos pronto por tu canal preferido.",
+        description: emailSent
+          ? "Te contactaremos pronto por tu canal preferido."
+          : "La cita quedó guardada. No pudimos enviar el correo automático, pero te contactaremos pronto.",
         action: {
           label: "WhatsApp",
           onClick: () => window.open(followUpWhatsAppUrl, "_blank", "noreferrer"),
@@ -300,6 +303,28 @@ export function AppointmentForm() {
       ) : null}
     </form>
   );
+}
+
+async function notifyAppointmentEmails(payload: AppointmentInsert) {
+  try {
+    const response = await fetch("/api/appointments/email", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      console.warn("[Email] Appointment notification failed", response.status);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.warn("[Email] Appointment notification failed", error);
+    return false;
+  }
 }
 
 function Field({
