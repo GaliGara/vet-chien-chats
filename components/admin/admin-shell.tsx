@@ -8,7 +8,6 @@ import {
   CalendarDays,
   Heart,
   LayoutDashboard,
-  LockKeyhole,
   LogOut,
   PawPrint,
   ShieldCheck,
@@ -35,7 +34,6 @@ export function AdminShell({ title, description, children }: AdminShellProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [hasAccess, setHasAccess] = useState(false);
-  const [accessError, setAccessError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -49,7 +47,6 @@ export function AdminShell({ title, description, children }: AdminShellProps) {
 
       if (!currentSession) {
         setHasAccess(false);
-        setAccessError("Inicia sesion para entrar al panel privado.");
         setIsLoading(false);
         router.replace(`/admin/login?next=${encodeURIComponent(pathname)}`);
         return;
@@ -60,10 +57,8 @@ export function AdminShell({ title, description, children }: AdminShellProps) {
 
       if (error) {
         setHasAccess(false);
-        setAccessError(
-          "No fue posible validar permisos de admin. Revisa app_admins y policies."
-        );
         setIsLoading(false);
+        router.replace("/admin/login?reason=forbidden");
         return;
       }
 
@@ -71,23 +66,18 @@ export function AdminShell({ title, description, children }: AdminShellProps) {
         await supabase.auth.signOut();
         if (!isMounted) return;
         setHasAccess(false);
-        setAccessError(
-          "Tu cuenta no esta autorizada para el panel admin de Chiens et Chats."
-        );
         setIsLoading(false);
         router.replace("/admin/login?reason=forbidden");
         return;
       }
 
       setHasAccess(true);
-      setAccessError("");
       setIsLoading(false);
     }
 
     verifyAccess().catch(() => {
       if (!isMounted) return;
       setHasAccess(false);
-      setAccessError("No se pudo validar la sesion. Intenta de nuevo.");
       setIsLoading(false);
       router.replace(`/admin/login?next=${encodeURIComponent(pathname)}`);
     });
@@ -98,7 +88,7 @@ export function AdminShell({ title, description, children }: AdminShellProps) {
       verifyAccess(nextSession).catch(() => {
         if (!isMounted) return;
         setHasAccess(false);
-        setAccessError("No se pudo actualizar el estado de sesion.");
+        router.replace(`/admin/login?next=${encodeURIComponent(pathname)}`);
       });
     });
 
@@ -111,7 +101,11 @@ export function AdminShell({ title, description, children }: AdminShellProps) {
   async function handleSignOut() {
     await supabase.auth.signOut();
     setHasAccess(false);
-    router.push("/admin/login");
+    router.replace("/admin/login");
+  }
+
+  if (!isLoading && !hasAccess) {
+    return null;
   }
 
   return (
@@ -137,15 +131,7 @@ export function AdminShell({ title, description, children }: AdminShellProps) {
                 <LogOut className="size-4" />
                 Salir
               </Button>
-            ) : (
-              <Button
-                asChild
-                size="sm"
-                className="rounded-full bg-[#A7353F] text-[#FFFDFB] hover:bg-[#8E2D36]"
-              >
-                <Link href="/admin/login">Login</Link>
-              </Button>
-            )}
+            ) : null}
           </div>
         </div>
         {hasAccess ? (
@@ -180,28 +166,7 @@ export function AdminShell({ title, description, children }: AdminShellProps) {
             </div>
             {children}
           </>
-        ) : (
-          <div className="mx-auto max-w-xl rounded-[2rem] border border-[#E8D6DE] bg-white p-7 text-center shadow-[0_20px_60px_rgb(91_58_99/0.10)]">
-            <span className="mx-auto grid size-14 place-items-center rounded-full bg-[#FFF6F8] text-[#A7353F]">
-              <LockKeyhole className="size-7" />
-            </span>
-            <h1 className="mt-5 font-heading text-4xl text-[#2F2433]">
-              Acceso admin
-            </h1>
-            <p className="mt-3 text-sm leading-7 text-[#7B6A80]">
-              {accessError ||
-                "Inicia sesion con una cuenta autorizada en app_admins para continuar."}
-            </p>
-            <div className="mt-6">
-              <Button
-                asChild
-                className="h-12 rounded-full bg-[#A7353F] text-[#FFFDFB] hover:bg-[#8E2D36]"
-              >
-                <Link href="/admin/login">Iniciar sesion</Link>
-              </Button>
-            </div>
-          </div>
-        )}
+        ) : null}
       </main>
 
       {hasAccess ? (

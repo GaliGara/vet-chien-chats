@@ -10,12 +10,14 @@ El frontend usa solo:
 - `NEXT_PUBLIC_WHATSAPP_NUMBER`, opcional
 - `NEXT_PUBLIC_SITE_URL`, opcional
 
-Importante: el formulario publico de citas hace un `insert` simple en
-`appointments`. No usa `.select()`, `.single()` ni intenta leer la fila creada.
+Importante: el formulario publico de citas usa `POST /api/appointments/create`.
+El insert real ocurre en server-side con service role y se valida disponibilidad
+antes de insertar. El insert no usa `.select()`, `.single()` ni intenta leer la
+fila creada para el flujo publico.
 
 Para el endpoint publico de disponibilidad (`/api/appointments/availability`),
 el servidor usa `SUPABASE_SERVICE_ROLE_KEY` para leer solo `preferred_time` de
-citas `confirmada` por fecha, sin exponer datos sensibles.
+citas `nueva` y `confirmada` por fecha, sin exponer datos sensibles.
 
 ## Admin allowlist
 
@@ -252,6 +254,29 @@ to authenticated
 using (public.is_app_admin());
 ```
 
+### Indice recomendado para evitar duplicados de horario
+
+Antes de crear el indice, revisa y corrige duplicados existentes:
+
+```sql
+select preferred_date, preferred_time, count(*)
+from public.appointments
+where status in ('nueva', 'confirmada')
+group by preferred_date, preferred_time
+having count(*) > 1;
+```
+
+Cuando no haya duplicados activos, crea el indice unico parcial:
+
+```sql
+create unique index if not exists unique_active_appointment_slot
+on public.appointments (preferred_date, preferred_time)
+where status in ('nueva', 'confirmada');
+```
+
+Si intentas crearlo con duplicados existentes, PostgreSQL va a rechazar el
+indice.
+
 ### pets_for_adoption
 
 ```sql
@@ -360,6 +385,8 @@ using (
   de `select`.
 - `appointments`: disponibilidad publica de horarios se resuelve por endpoint
   server-side; no se habilita lectura publica de filas.
+- `appointments`: se considera ocupado cualquier slot con status `nueva` o
+  `confirmada`.
 - `/admin/citas`: si RLS bloquea, revisa que el usuario este autenticado y que
   su correo exista en `public.app_admins`.
 - `services`: la landing consulta servicios con `active = true`.

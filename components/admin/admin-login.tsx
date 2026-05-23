@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowLeft, Heart, Loader2, LockKeyhole } from "lucide-react";
@@ -25,11 +25,13 @@ const welcomeMessages = [
 
 export function AdminLogin() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const shouldReduceMotion = useReducedMotion();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [welcomeMessage, setWelcomeMessage] = useState<string>(welcomeMessages[0]);
+  const [inlineError, setInlineError] = useState("");
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -40,8 +42,45 @@ export function AdminLogin() {
     return () => window.clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    async function validateSession() {
+      const reason = searchParams.get("reason");
+      if (reason === "forbidden" && isMounted) {
+        setInlineError("No fue posible validar permisos de admin.");
+      }
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session || !isMounted) return;
+
+      const { data, error } = await supabase.rpc("is_app_admin");
+      if (!isMounted) return;
+
+      if (error || !data) {
+        setInlineError("No fue posible validar permisos de admin.");
+        return;
+      }
+
+      router.replace("/admin");
+    }
+
+    validateSession().catch(() => {
+      if (!isMounted) return;
+      setInlineError("No fue posible validar permisos de admin.");
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [router, searchParams]);
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setInlineError("");
     setIsLoading(true);
 
     try {
@@ -132,6 +171,11 @@ export function AdminLogin() {
         </div>
 
         <form onSubmit={handleSubmit} className="mt-7 grid gap-4">
+          {inlineError ? (
+            <p className="rounded-2xl border border-[#E8D6DE] bg-[#FFF6F8] px-3 py-2 text-sm text-[#7B6A80]">
+              {inlineError}
+            </p>
+          ) : null}
           <label>
             <span className="mb-2 block text-sm font-semibold text-[#5B3A63]">
               Usuario

@@ -57,7 +57,9 @@ Notas:
 - `NEXT_PUBLIC_WHATSAPP_NUMBER` es opcional.
 - `RESEND_FROM_EMAIL` es opcional (si falta, usa `onboarding@resend.dev`).
 - Nunca uses secret keys en frontend.
-- `SUPABASE_SERVICE_ROLE_KEY` se usa solo en `/api/appointments/availability`.
+- `SUPABASE_SERVICE_ROLE_KEY` se usa solo server-side en:
+  - `/api/appointments/create`
+  - `/api/appointments/availability`
 - `ADMIN_LOGIN_EMAIL` y `ADMIN_LOGIN_USERNAME` son solo server-side.
 - En `/admin/login`, Lizeth escribe `ADMIN_LOGIN_USERNAME` + password.
 - El login server-side mapea ese usuario a `ADMIN_LOGIN_EMAIL`.
@@ -103,10 +105,12 @@ fuentes a local antes de produccion.
 ### Publico
 
 1. El usuario envia solicitud.
-2. Se guarda en `appointments` con `status = nueva`.
-3. Se intenta enviar correo al admin y al cliente (si hay email).
-4. Si correo falla, la cita no se pierde.
-5. Si canal es WhatsApp, se ofrece CTA para continuar en WhatsApp.
+2. Se valida disponibilidad server-side por fecha/hora y status activo.
+3. Se guarda en `appointments` con `status = nueva`.
+4. Si el horario ya esta ocupado, la API responde `409`.
+5. Se intenta enviar correo al admin y al cliente (si hay email).
+6. Si correo falla, la cita no se pierde.
+7. Si canal es WhatsApp, se ofrece CTA para continuar en WhatsApp.
 
 ### Admin
 
@@ -121,11 +125,18 @@ fuentes a local antes de produccion.
 
 - Horario laboral: `09:00` a `18:00`.
 - Intervalo: cada 30 minutos.
-- Se bloquean horarios ocupados por citas `confirmada` del mismo dia.
+- Se bloquean horarios ocupados por citas `nueva` o `confirmada` del mismo dia.
 - Endpoint publico minimo:
   - `GET /api/appointments/availability?date=YYYY-MM-DD`
   - Respuesta: `{ date, booked_times }`
   - No expone datos privados de citas.
+
+Creacion publica:
+
+- `POST /api/appointments/create`
+- Valida payload y disponibilidad en server-side.
+- Si el slot esta ocupado responde:
+  - `409` + `Ese horario ya no esta disponible. Elige otra hora.`
 
 ## Supabase
 

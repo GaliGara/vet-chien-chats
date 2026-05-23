@@ -62,6 +62,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
+const slotTakenAdminMessage =
+  "Ese horario ya tiene una solicitud o cita confirmada. Elige otro horario.";
+
 const appointmentAdminSchema = z.object({
   client_name: z.string().min(2, "Escribe el nombre del cliente."),
   phone: z
@@ -222,6 +225,10 @@ export function AdminAppointments() {
       );
       toast.success("Status actualizado");
     } catch (error) {
+      if (isAppointmentSlotTakenError(error)) {
+        toast.error(slotTakenAdminMessage);
+        return;
+      }
       toast.error("No se pudo actualizar", {
         description: getSupabaseErrorMessage(error),
       });
@@ -802,6 +809,10 @@ function AppointmentAdminForm({
         toast.info(advisory);
       }
     } catch (error) {
+      if (isAppointmentSlotTakenError(error)) {
+        toast.error(slotTakenAdminMessage);
+        return;
+      }
       toast.error("No se pudo guardar", {
         description: getSupabaseErrorMessage(error),
       });
@@ -1013,4 +1024,17 @@ function getAppointmentsEmptyState(tab: AppointmentTab) {
   if (tab === "atendida") return "No hay citas atendidas.";
   if (tab === "cancelada") return "No hay citas canceladas.";
   return "No hay citas registradas.";
+}
+
+function isAppointmentSlotTakenError(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+
+  const code = "code" in error ? String(error.code) : "";
+  const message = "message" in error ? String(error.message).toLowerCase() : "";
+
+  return (
+    code === "APPOINTMENT_SLOT_TAKEN" ||
+    code === "23505" ||
+    message.includes("ese horario ya tiene una solicitud")
+  );
 }

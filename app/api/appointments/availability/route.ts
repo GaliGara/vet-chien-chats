@@ -11,10 +11,7 @@ export async function GET(request: Request) {
   const date = searchParams.get("date") ?? "";
 
   if (!datePattern.test(date)) {
-    return Response.json(
-      { ok: false, error: "invalid_date", booked_times: [] as string[] },
-      { status: 400 }
-    );
+    return Response.json({ date, booked_times: [] as string[] }, { status: 400 });
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -22,12 +19,7 @@ export async function GET(request: Request) {
 
   if (!supabaseUrl || !serviceRoleKey) {
     return Response.json(
-      {
-        ok: false,
-        error: "availability_not_configured",
-        date,
-        booked_times: [] as string[],
-      },
+      { date, booked_times: [] as string[] },
       { status: 503 }
     );
   }
@@ -40,13 +32,10 @@ export async function GET(request: Request) {
     .from("appointments")
     .select("preferred_time")
     .eq("preferred_date", date)
-    .eq("status", "confirmada");
+    .in("status", ["nueva", "confirmada"]);
 
   if (error) {
-    return Response.json(
-      { ok: false, error: "availability_query_failed", date, booked_times: [] },
-      { status: 500 }
-    );
+    return Response.json({ date, booked_times: [] as string[] }, { status: 500 });
   }
 
   const booked = new Set<string>();
@@ -56,7 +45,6 @@ export async function GET(request: Request) {
   }
 
   return Response.json({
-    ok: true,
     date,
     booked_times: [...booked].sort(),
   });

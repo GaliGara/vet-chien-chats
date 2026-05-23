@@ -19,7 +19,6 @@ import {
   formatTimeSlotLabel,
   normalizeTimeSlot,
 } from "@/lib/appointment-slots";
-import { createAppointment } from "@/lib/supabase-queries";
 import { getSupabaseErrorMessage } from "@/lib/supabase-errors";
 import { buildWhatsAppUrl } from "@/lib/format";
 import type { AppointmentInsert, ContactChannel } from "@/types/database";
@@ -99,6 +98,11 @@ type SubmitSummary = {
 };
 
 type EmailNotificationResult = "sent" | "not_configured" | "failed";
+type CreateAppointmentApiResponse = {
+  ok: boolean;
+  message?: string;
+  email_status?: EmailNotificationResult;
+};
 
 export function AppointmentForm() {
   const [submitSummary, setSubmitSummary] = useState<SubmitSummary | null>(null);
@@ -244,8 +248,7 @@ export function AppointmentForm() {
     };
 
     try {
-      await createAppointment(payload);
-      const emailStatus = await notifyAppointmentEmails(payload);
+      const emailStatus = await createAppointmentRequest(payload);
       toast.success(
         "Cita registrada",
         buildChannelToastOptions(values.contact_channel, followUpWhatsAppUrl, emailStatus)
@@ -260,8 +263,12 @@ export function AppointmentForm() {
       setBookedSlots([]);
       setAvailabilityError("");
     } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : getSupabaseErrorMessage(error);
       toast.error("No pudimos guardar la cita", {
-        description: getSupabaseErrorMessage(error),
+        description: message,
       });
     }
   }
@@ -566,9 +573,9 @@ function buildChannelToastOptions(
   };
 }
 
-async function notifyAppointmentEmails(payload: AppointmentInsert) {
+async function createAppointmentRequest(payload: AppointmentInsert) {
   try {
-    const response = await fetch("/api/appointments/email", {
+    const response = await fetch("/api/appointments/create", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -576,12 +583,29 @@ async function notifyAppointmentEmails(payload: AppointmentInsert) {
       body: JSON.stringify(payload),
     });
 
-    if (response.ok) return "sent" as const;
+    const result = (await response.json().catch(() => null)) as
+      | CreateAppointmentApiResponse
+      | null;
 
-    if (response.status === 503) return "not_configured" as const;
+    if (!response.ok) {
+      const fallbackMessage = "No pudimos guardar la cita.";
+      const message =
+        typeof result?.message === "string" ? result.message : fallbackMessage;
+      throw new Error(message);
+    }
+
+    if (
+      result?.email_status === "sent" ||
+      result?.email_status === "not_configured" ||
+      result?.email_status === "failed"
+    ) {
+      return result.email_status;
+    }
+
     return "failed" as const;
-  } catch {
-    return "failed" as const;
+  } catch (error) {
+    if (error instanceof Error) throw error;
+    throw new Error("No pudimos guardar la cita.");
   }
 }
 

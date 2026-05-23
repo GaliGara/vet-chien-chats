@@ -16,6 +16,10 @@ type QueryOptions = {
   throwOnError?: boolean;
 };
 
+const busyAppointmentStatuses: AppointmentStatus[] = ["nueva", "confirmada"];
+const appointmentSlotTakenMessage =
+  "Ese horario ya tiene una solicitud o cita confirmada. Elige otro horario.";
+
 function reportSupabaseError(context: string, error: unknown) {
   console.warn(`[Supabase] ${context}`, error);
 }
@@ -38,12 +42,72 @@ function getLocalDateISO() {
   return shifted.toISOString().slice(0, 10);
 }
 
+function isBusyAppointmentStatus(status: AppointmentStatus) {
+  return busyAppointmentStatuses.includes(status);
+}
+
+function createAppointmentSlotTakenError() {
+  const error = new Error(appointmentSlotTakenMessage);
+  (error as { code?: string }).code = "APPOINTMENT_SLOT_TAKEN";
+  return error;
+}
+
+async function hasAppointmentSlotConflict({
+  preferredDate,
+  preferredTime,
+  excludeAppointmentId,
+  options,
+}: {
+  preferredDate: string;
+  preferredTime: string;
+  excludeAppointmentId?: string;
+  options?: QueryOptions;
+}) {
+  let query = supabase
+    .from("appointments")
+    .select("id")
+    .eq("preferred_date", preferredDate)
+    .eq("preferred_time", preferredTime)
+    .in("status", busyAppointmentStatuses)
+    .limit(1);
+
+  if (excludeAppointmentId) {
+    query = query.neq("id", excludeAppointmentId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    handleQueryError("No se pudo validar disponibilidad del horario.", error, options);
+    return false;
+  }
+
+  return (data?.length ?? 0) > 0;
+}
+
 export async function createAppointment(input: AppointmentInsert) {
   if (!isSupabaseConfigured) {
     throw new Error("Supabase no esta configurado.");
   }
 
-  const { error } = await supabase.from("appointments").insert(input);
+  const normalizedTime = normalizeTimeSlot(input.preferred_time);
+
+  if (isBusyAppointmentStatus(input.status) && normalizedTime) {
+    const hasConflict = await hasAppointmentSlotConflict({
+      preferredDate: input.preferred_date,
+      preferredTime: normalizedTime,
+    });
+
+    if (hasConflict) {
+      throw createAppointmentSlotTakenError();
+    }
+  }
+
+  const payload = normalizedTime
+    ? { ...input, preferred_time: normalizedTime }
+    : input;
+
+  const { error } = await supabase.from("appointments").insert(payload);
   if (error) throw error;
 }
 
@@ -75,7 +139,7 @@ export async function getBookedTimeSlotsByDate(
     .from("appointments")
     .select("id,preferred_time")
     .eq("preferred_date", date)
-    .eq("status", "confirmada");
+    .in("status", busyAppointmentStatuses);
 
   if (options?.excludeAppointmentId) {
     query = query.neq("id", options.excludeAppointmentId);
@@ -112,9 +176,39 @@ export async function updateAppointment(
     throw new Error("Supabase no esta configurado.");
   }
 
+  const { data: currentAppointment, error: readError } = await supabase
+    .from("appointments")
+    .select("preferred_date, preferred_time, status")
+    .eq("id", id)
+    .single();
+
+  if (readError) throw readError;
+
+  const nextStatus = (input.status ?? currentAppointment.status) as AppointmentStatus;
+  const nextDate = input.preferred_date ?? currentAppointment.preferred_date;
+  const rawTime = input.preferred_time ?? currentAppointment.preferred_time;
+  const normalizedTime = normalizeTimeSlot(rawTime);
+
+  if (isBusyAppointmentStatus(nextStatus) && normalizedTime) {
+    const hasConflict = await hasAppointmentSlotConflict({
+      preferredDate: nextDate,
+      preferredTime: normalizedTime,
+      excludeAppointmentId: id,
+    });
+
+    if (hasConflict) {
+      throw createAppointmentSlotTakenError();
+    }
+  }
+
+  const payload =
+    input.preferred_time !== undefined && normalizedTime
+      ? { ...input, preferred_time: normalizedTime }
+      : input;
+
   const { data, error } = await supabase
     .from("appointments")
-    .update(input)
+    .update(payload)
     .eq("id", id)
     .select()
     .single();
