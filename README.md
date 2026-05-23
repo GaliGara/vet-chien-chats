@@ -104,6 +104,9 @@ Tablas esperadas:
 - `pets_for_adoption`
 - `services`
 
+Nota para proyectos existentes: si `services` no tiene `duration_minutes`,
+agrega la columna manualmente con el SQL documentado en `docs/supabase-policies.md`.
+
 Storage esperado:
 
 - Bucket público `adoption-pets`

@@ -48,6 +48,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -60,19 +61,22 @@ const appointmentAdminSchema = z.object({
   phone: z
     .string()
     .trim()
-    .min(8, "Agrega un teléfono válido.")
-    .regex(/^[+()\d\s-]+$/, "Usa solo números, espacios o +."),
+    .optional()
+    .refine(
+      (value) => !value || /^[+()\d\s-]{6,}$/.test(value),
+      "Si agregas telefono, usa numeros, espacios o +."
+    ),
   email: z
-    .union([z.string().email("Agrega un email válido."), z.literal("")])
+    .union([z.string().email("Agrega un email valido."), z.literal("")])
     .optional(),
   pet_name: z.string().min(2, "Agrega el nombre de la mascota."),
   pet_type: z.string().min(1, "Selecciona el tipo de mascota."),
   service: z.string().min(1, "Selecciona un servicio."),
   preferred_date: z.string().min(1, "Elige una fecha."),
-  preferred_time: z.string().min(1, "Elige una hora."),
+  preferred_time: z.string().optional(),
   contact_channel: z.enum(["whatsapp", "telefono", "email"]),
   status: z.enum(["nueva", "confirmada", "cancelada", "atendida"]),
-  message: z.string().max(600, "Máximo 600 caracteres.").optional(),
+  message: z.string().max(600, "Maximo 600 caracteres.").optional(),
 });
 
 type AppointmentAdminValues = z.infer<typeof appointmentAdminSchema>;
@@ -83,7 +87,7 @@ const emptyAppointmentValues: AppointmentAdminValues = {
   email: "",
   pet_name: "",
   pet_type: "Perro",
-  service: "Consulta médica",
+  service: "Consulta medica",
   preferred_date: "",
   preferred_time: "",
   contact_channel: "whatsapp",
@@ -187,9 +191,9 @@ export function AdminAppointments() {
   return (
     <AdminShell
       title="Citas"
-      description="Gestiona solicitudes como cards legibles desde celular, filtra por estado y confirma avances rápidamente."
+      description="Gestiona solicitudes como cards compactas desde celular y actualiza estado rapidamente."
     >
-      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex gap-2 overflow-x-auto pb-1">
           {(["todas", ...appointmentStatusOptions] as const).map((status) => (
             <button
@@ -197,7 +201,7 @@ export function AdminAppointments() {
               type="button"
               aria-pressed={filter === status}
               onClick={() => setFilter(status)}
-              className={`min-w-fit rounded-full border px-4 py-2 text-sm font-semibold transition ${
+              className={`min-w-fit rounded-full border px-3 py-1.5 text-xs font-semibold transition sm:px-4 sm:py-2 sm:text-sm ${
                 filter === status
                   ? "border-[#A7353F] bg-[#A7353F] text-[#FFFDFB]"
                   : "border-[#E8D6DE] bg-white text-[#5B3A63] hover:bg-[#FFF6F8]"
@@ -229,28 +233,33 @@ export function AdminAppointments() {
                 Nueva cita
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-h-[88svh] overflow-y-auto rounded-[2rem] border-[#E8D6DE] bg-[#FFFDFB] sm:max-w-2xl">
-              <DialogHeader>
+            <DialogContent className="h-[min(90dvh,780px)] overflow-hidden rounded-[2rem] border-[#E8D6DE] bg-[#FFFDFB] p-0 sm:max-w-2xl">
+              <DialogHeader className="border-b border-[#E8D6DE] bg-[#FFFDFB] px-5 pb-3 pt-5">
                 <DialogTitle className="font-heading text-3xl text-[#2F2433]">
                   {editingAppointment ? "Editar cita" : "Nueva cita"}
                 </DialogTitle>
+                <DialogDescription className="text-sm text-[#7B6A80]">
+                  Registra una cita manual con lo esencial y completa el resto luego.
+                </DialogDescription>
               </DialogHeader>
-              <AppointmentAdminForm
-                key={editingAppointment?.id ?? "new"}
-                appointment={editingAppointment}
-                onSaved={handleSaved}
-              />
+              <div className="modal-scroll min-h-0 flex-1 overflow-y-auto px-5 pb-5">
+                <AppointmentAdminForm
+                  key={editingAppointment?.id ?? "new"}
+                  appointment={editingAppointment}
+                  onSaved={handleSaved}
+                />
+              </div>
             </DialogContent>
           </Dialog>
         </div>
       </div>
 
       {isLoading ? (
-        <div className="grid gap-4">
+        <div className="grid gap-3">
           {[1, 2, 3].map((item) => (
             <div
               key={item}
-              className="h-52 animate-pulse rounded-[1.75rem] bg-[#FFF6F8]"
+              className="h-40 animate-pulse rounded-[1.25rem] bg-[#FFF6F8]"
             />
           ))}
         </div>
@@ -260,7 +269,7 @@ export function AdminAppointments() {
           text={errorMessage}
         />
       ) : filteredAppointments.length > 0 ? (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-3 lg:grid-cols-2">
           {filteredAppointments.map((appointment) => (
             <AppointmentCard
               key={appointment.id}
@@ -274,7 +283,7 @@ export function AdminAppointments() {
       ) : (
         <AdminNotice
           title="Sin citas por ahora"
-          text="Cuando llegue una solicitud desde el formulario o crees una cita manual, aparecerá aquí como tarjeta lista para gestionar."
+          text="Cuando llegue una solicitud o crees una cita manual, aparecera aqui."
         />
       )}
     </AdminShell>
@@ -292,25 +301,26 @@ function AppointmentCard({
   onEdit: (appointment: Appointment) => void;
   onStatusChange: (id: string, status: AppointmentStatus) => void;
 }) {
+  const hasCallablePhone = Boolean(buildPhoneHref(appointment.phone));
   const whatsappMessage = `Hola ${appointment.client_name}, te contactamos de ${brand.name} sobre tu cita para ${appointment.pet_name} el ${appointment.preferred_date} a las ${appointment.preferred_time}. Servicio: ${appointment.service}.`;
   const phoneHref = buildPhoneHref(appointment.phone);
 
   return (
-    <article className="rounded-[1.75rem] border border-[#E8D6DE] bg-white p-5 shadow-[0_16px_44px_rgb(91_58_99/0.07)]">
-      <div className="flex items-start justify-between gap-4">
+    <article className="rounded-[1.3rem] border border-[#E8D6DE] bg-white p-4 shadow-[0_12px_30px_rgb(91_58_99/0.07)]">
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="truncate font-heading text-3xl text-[#2F2433]">
+          <h2 className="truncate font-heading text-2xl leading-tight text-[#2F2433]">
             {appointment.client_name}
           </h2>
-          <p className="mt-1 text-sm text-[#7B6A80]">
+          <p className="mt-0.5 text-sm text-[#7B6A80]">
             {appointment.pet_name} · {appointment.pet_type}
           </p>
         </div>
         <AppointmentStatusBadge status={appointment.status} />
       </div>
 
-      <div className="mt-5 grid gap-3 text-sm text-[#7B6A80]">
-        <InfoLine icon={Phone} text={appointment.phone} />
+      <div className="mt-3 grid gap-2 text-sm text-[#7B6A80]">
+        {hasCallablePhone ? <InfoLine icon={Phone} text={appointment.phone} /> : null}
         {appointment.email ? <InfoLine icon={Mail} text={appointment.email} /> : null}
         <InfoLine
           icon={CalendarDays}
@@ -318,36 +328,36 @@ function AppointmentCard({
         />
       </div>
 
-      <div className="mt-5 rounded-[1.3rem] bg-[#FFF6F8] p-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#A7353F]">
+      <div className="mt-3 rounded-[1rem] bg-[#FFF6F8] p-3">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#A7353F]">
           Servicio
         </p>
-        <p className="mt-1 font-semibold text-[#2F2433]">
+        <p className="mt-1 text-sm font-semibold text-[#2F2433]">
           {appointment.service}
         </p>
         {appointment.message ? (
-          <p className="mt-3 text-sm leading-6 text-[#7B6A80]">
+          <p className="mt-2 text-sm leading-6 text-[#7B6A80]">
             {appointment.message}
           </p>
         ) : null}
       </div>
 
-      <div className="mt-5 grid grid-cols-2 gap-3 text-xs text-[#7B6A80]">
+      <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-[#7B6A80]">
         <div>
-          <p className="font-semibold uppercase tracking-[0.14em] text-[#5B3A63]">
+          <p className="font-semibold uppercase tracking-[0.12em] text-[#5B3A63]">
             Canal
           </p>
           <p className="mt-1 capitalize">{appointment.contact_channel}</p>
         </div>
         <div>
-          <p className="font-semibold uppercase tracking-[0.14em] text-[#5B3A63]">
+          <p className="font-semibold uppercase tracking-[0.12em] text-[#5B3A63]">
             Registro
           </p>
           <p className="mt-1">{formatDateTime(appointment.created_at)}</p>
         </div>
       </div>
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto_auto_auto]">
+      <div className="mt-3 grid grid-cols-2 gap-2">
         <select
           aria-label={`Cambiar status de cita de ${appointment.client_name}`}
           value={appointment.status}
@@ -355,7 +365,7 @@ function AppointmentCard({
           onChange={(event) =>
             onStatusChange(appointment.id, event.target.value as AppointmentStatus)
           }
-          className="h-11 rounded-full border border-[#E8D6DE] bg-[#FFFDFB] px-4 text-sm font-semibold text-[#5B3A63] focus-visible:ring-3 focus-visible:ring-[#DFA2BA]/45"
+          className="h-10 rounded-full border border-[#E8D6DE] bg-[#FFFDFB] px-3 text-sm font-semibold text-[#5B3A63] focus-visible:ring-3 focus-visible:ring-[#DFA2BA]/45"
         >
           {appointmentStatusOptions.map((status) => (
             <option key={status} value={status}>
@@ -367,16 +377,16 @@ function AppointmentCard({
           type="button"
           variant="outline"
           onClick={() => onEdit(appointment)}
-          className="h-11 rounded-full border-[#E8D6DE] bg-white text-[#5B3A63] hover:bg-[#FFF6F8]"
+          className="h-10 rounded-full border-[#E8D6DE] bg-white text-[#5B3A63] hover:bg-[#FFF6F8]"
         >
           <Edit3 className="size-4" />
           Editar
         </Button>
-        {appointment.phone ? (
+        {hasCallablePhone ? (
           <Button
             asChild
             variant="outline"
-            className="h-11 rounded-full border-[#E8D6DE] bg-white text-[#5B3A63] hover:bg-[#FFF6F8]"
+            className="h-10 rounded-full border-[#E8D6DE] bg-white text-[#5B3A63] hover:bg-[#FFF6F8]"
           >
             <a
               href={buildWhatsAppUrl(appointment.phone, whatsappMessage)}
@@ -387,19 +397,23 @@ function AppointmentCard({
               WhatsApp
             </a>
           </Button>
-        ) : null}
+        ) : (
+          <span />
+        )}
         {phoneHref ? (
           <Button
             asChild
             variant="outline"
-            className="h-11 rounded-full border-[#E8D6DE] bg-white text-[#5B3A63] hover:bg-[#FFF6F8]"
+            className="h-10 rounded-full border-[#E8D6DE] bg-white text-[#5B3A63] hover:bg-[#FFF6F8]"
           >
             <a href={phoneHref}>
               <PhoneCall className="size-4" />
               Llamar
             </a>
           </Button>
-        ) : null}
+        ) : (
+          <span />
+        )}
       </div>
     </article>
   );
@@ -422,13 +436,16 @@ function AppointmentAdminForm({
     defaultValues: appointment
       ? {
           client_name: appointment.client_name,
-          phone: appointment.phone,
+          phone: appointment.phone === "No proporcionado" ? "" : appointment.phone,
           email: appointment.email ?? "",
           pet_name: appointment.pet_name,
           pet_type: appointment.pet_type,
           service: appointment.service,
           preferred_date: appointment.preferred_date,
-          preferred_time: appointment.preferred_time,
+          preferred_time:
+            appointment.preferred_time === "Por confirmar"
+              ? ""
+              : appointment.preferred_time,
           contact_channel: appointment.contact_channel,
           status: appointment.status,
           message: appointment.message ?? "",
@@ -437,15 +454,19 @@ function AppointmentAdminForm({
   });
 
   async function onSubmit(values: AppointmentAdminValues) {
+    const normalizedPhone = values.phone?.trim() || "";
+    const normalizedEmail = values.email?.trim() || "";
+    const preferredTime = values.preferred_time?.trim() || "Por confirmar";
+
     const payload: AppointmentInsert = {
       client_name: values.client_name.trim(),
-      phone: values.phone.trim(),
-      email: values.email?.trim() || null,
+      phone: normalizedPhone || "No proporcionado",
+      email: normalizedEmail || null,
       pet_name: values.pet_name.trim(),
       pet_type: values.pet_type,
       service: values.service,
       preferred_date: values.preferred_date,
-      preferred_time: values.preferred_time,
+      preferred_time: preferredTime,
       message: values.message?.trim() || null,
       contact_channel: values.contact_channel as ContactChannel,
       status: values.status,
@@ -462,6 +483,14 @@ function AppointmentAdminForm({
         toast.success("Cita creada");
         await onSaved();
       }
+      const advisory = getAdminContactAdvisory(
+        values.contact_channel,
+        normalizedPhone,
+        normalizedEmail
+      );
+      if (advisory) {
+        toast.info(advisory);
+      }
     } catch (error) {
       toast.error("No se pudo guardar", {
         description: getSupabaseErrorMessage(error),
@@ -472,29 +501,49 @@ function AppointmentAdminForm({
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4">
+    <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4 pb-2">
       <div className="grid gap-4 sm:grid-cols-2">
         <FormField label="Nombre del cliente" error={errors.client_name?.message}>
-          <Input {...register("client_name")} className="h-12 rounded-2xl border-[#E8D6DE] bg-white" />
+          <Input
+            {...register("client_name")}
+            className="h-12 rounded-2xl border-[#E8D6DE] bg-white"
+          />
         </FormField>
-        <FormField label="Teléfono" error={errors.phone?.message}>
-          <Input {...register("phone")} inputMode="tel" className="h-12 rounded-2xl border-[#E8D6DE] bg-white" />
+        <FormField label="Telefono opcional" error={errors.phone?.message}>
+          <Input
+            {...register("phone")}
+            inputMode="tel"
+            className="h-12 rounded-2xl border-[#E8D6DE] bg-white"
+          />
         </FormField>
         <FormField label="Correo opcional" error={errors.email?.message}>
-          <Input {...register("email")} type="email" className="h-12 rounded-2xl border-[#E8D6DE] bg-white" />
+          <Input
+            {...register("email")}
+            type="email"
+            className="h-12 rounded-2xl border-[#E8D6DE] bg-white"
+          />
         </FormField>
         <FormField label="Nombre de mascota" error={errors.pet_name?.message}>
-          <Input {...register("pet_name")} className="h-12 rounded-2xl border-[#E8D6DE] bg-white" />
+          <Input
+            {...register("pet_name")}
+            className="h-12 rounded-2xl border-[#E8D6DE] bg-white"
+          />
         </FormField>
         <FormField label="Tipo de mascota" error={errors.pet_type?.message}>
-          <select {...register("pet_type")} className="h-12 w-full rounded-2xl border border-[#E8D6DE] bg-white px-3 text-sm text-[#2F2433]">
+          <select
+            {...register("pet_type")}
+            className="h-12 w-full rounded-2xl border border-[#E8D6DE] bg-white px-3 text-sm text-[#2F2433]"
+          >
             <option value="Perro">Perro</option>
             <option value="Gato">Gato</option>
             <option value="Otro">Otro</option>
           </select>
         </FormField>
         <FormField label="Servicio" error={errors.service?.message}>
-          <select {...register("service")} className="h-12 w-full rounded-2xl border border-[#E8D6DE] bg-white px-3 text-sm text-[#2F2433]">
+          <select
+            {...register("service")}
+            className="h-12 w-full rounded-2xl border border-[#E8D6DE] bg-white px-3 text-sm text-[#2F2433]"
+          >
             {appointmentServiceOptions.map((service) => (
               <option key={service} value={service}>
                 {service}
@@ -503,20 +552,34 @@ function AppointmentAdminForm({
           </select>
         </FormField>
         <FormField label="Fecha preferida" error={errors.preferred_date?.message}>
-          <Input {...register("preferred_date")} type="date" className="h-12 rounded-2xl border-[#E8D6DE] bg-white" />
+          <Input
+            {...register("preferred_date")}
+            type="date"
+            className="h-12 rounded-2xl border-[#E8D6DE] bg-white"
+          />
         </FormField>
-        <FormField label="Hora preferida" error={errors.preferred_time?.message}>
-          <Input {...register("preferred_time")} type="time" className="h-12 rounded-2xl border-[#E8D6DE] bg-white" />
+        <FormField label="Hora preferida (opcional)" error={errors.preferred_time?.message}>
+          <Input
+            {...register("preferred_time")}
+            type="time"
+            className="h-12 rounded-2xl border-[#E8D6DE] bg-white"
+          />
         </FormField>
         <FormField label="Canal de contacto" error={errors.contact_channel?.message}>
-          <select {...register("contact_channel")} className="h-12 w-full rounded-2xl border border-[#E8D6DE] bg-white px-3 text-sm text-[#2F2433]">
+          <select
+            {...register("contact_channel")}
+            className="h-12 w-full rounded-2xl border border-[#E8D6DE] bg-white px-3 text-sm text-[#2F2433]"
+          >
             <option value="whatsapp">WhatsApp</option>
-            <option value="telefono">Teléfono</option>
+            <option value="telefono">Telefono</option>
             <option value="email">Email</option>
           </select>
         </FormField>
         <FormField label="Status" error={errors.status?.message}>
-          <select {...register("status")} className="h-12 w-full rounded-2xl border border-[#E8D6DE] bg-white px-3 text-sm text-[#2F2433]">
+          <select
+            {...register("status")}
+            className="h-12 w-full rounded-2xl border border-[#E8D6DE] bg-white px-3 text-sm text-[#2F2433]"
+          >
             {appointmentStatusOptions.map((status) => (
               <option key={status} value={status}>
                 {appointmentStatusLabels[status]}
@@ -526,15 +589,24 @@ function AppointmentAdminForm({
         </FormField>
       </div>
       <FormField label="Mensaje o notas" error={errors.message?.message}>
-        <Textarea {...register("message")} className="min-h-28 rounded-2xl border-[#E8D6DE] bg-white" />
+        <Textarea
+          {...register("message")}
+          className="min-h-24 rounded-2xl border-[#E8D6DE] bg-white"
+        />
       </FormField>
-      <Button
-        disabled={isSaving}
-        className="h-12 rounded-full bg-[#A7353F] text-[#FFFDFB] hover:bg-[#8E2D36]"
-      >
-        {isSaving ? <Loader2 className="size-4 animate-spin" /> : null}
-        {appointment ? "Guardar cambios" : "Crear cita"}
-      </Button>
+      <p className="text-xs leading-5 text-[#7B6A80]">
+        Telefono y correo son opcionales en captura manual. Si falta el dato del
+        canal elegido, podras completarlo despues.
+      </p>
+      <div className="sticky bottom-0 z-10 bg-[#FFFDFB] pt-1">
+        <Button
+          disabled={isSaving}
+          className="h-12 w-full rounded-full bg-[#A7353F] text-[#FFFDFB] hover:bg-[#8E2D36]"
+        >
+          {isSaving ? <Loader2 className="size-4 animate-spin" /> : null}
+          {appointment ? "Guardar cambios" : "Crear cita"}
+        </Button>
+      </div>
     </form>
   );
 }
@@ -576,4 +648,21 @@ function InfoLine({
       <span className="truncate">{text}</span>
     </span>
   );
+}
+
+function getAdminContactAdvisory(
+  channel: ContactChannel,
+  phone: string,
+  email: string
+) {
+  if (channel === "whatsapp" && !phone) {
+    return "Tip: agrega telefono para facilitar confirmacion por WhatsApp.";
+  }
+  if (channel === "telefono" && !phone) {
+    return "Tip: agrega telefono para poder llamar y confirmar.";
+  }
+  if (channel === "email" && !email) {
+    return "Tip: agrega correo para confirmar por email.";
+  }
+  return "";
 }

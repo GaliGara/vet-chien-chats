@@ -42,6 +42,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -211,28 +212,33 @@ export function AdminAdoptions() {
                 Crear
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-h-[88svh] overflow-y-auto rounded-[2rem] border-[#E8D6DE] bg-[#FFFDFB] sm:max-w-2xl">
-              <DialogHeader>
+            <DialogContent className="h-[min(90dvh,780px)] overflow-hidden rounded-[2rem] border-[#E8D6DE] bg-[#FFFDFB] p-0 sm:max-w-2xl">
+              <DialogHeader className="border-b border-[#E8D6DE] bg-[#FFFDFB] px-5 pb-3 pt-5">
                 <DialogTitle className="font-heading text-3xl text-[#2F2433]">
                   {editingPet ? "Editar adopción" : "Nueva adopción"}
                 </DialogTitle>
+                <DialogDescription className="text-sm text-[#7B6A80]">
+                  Crea o edita perfiles para adopcion con foto, estado y requisitos.
+                </DialogDescription>
               </DialogHeader>
-              <PetForm
-                key={editingPet?.id ?? "new"}
-                pet={editingPet}
-                onSaved={(savedPet) => {
-                  setPets((current) => {
-                    const exists = current.some((item) => item.id === savedPet.id);
-                    if (exists) {
-                      return current.map((item) =>
-                        item.id === savedPet.id ? savedPet : item
-                      );
-                    }
-                    return [savedPet, ...current];
-                  });
-                  setDialogOpen(false);
-                }}
-              />
+              <div className="modal-scroll min-h-0 flex-1 overflow-y-auto px-5 pb-5">
+                <PetForm
+                  key={editingPet?.id ?? "new"}
+                  pet={editingPet}
+                  onSaved={(savedPet) => {
+                    setPets((current) => {
+                      const exists = current.some((item) => item.id === savedPet.id);
+                      if (exists) {
+                        return current.map((item) =>
+                          item.id === savedPet.id ? savedPet : item
+                        );
+                      }
+                      return [savedPet, ...current];
+                    });
+                    setDialogOpen(false);
+                  }}
+                />
+              </div>
             </DialogContent>
           </Dialog>
         </div>
@@ -243,7 +249,7 @@ export function AdminAdoptions() {
           {[1, 2].map((item) => (
             <div
               key={item}
-              className="h-72 animate-pulse rounded-[1.75rem] bg-[#FFF6F8]"
+              className="h-52 animate-pulse rounded-[1.4rem] bg-[#FFF6F8]"
             />
           ))}
         </div>
@@ -286,18 +292,20 @@ function PetAdminCard({
   onStatusChange: (pet: PetForAdoption, status: PetAdoptionStatus) => void;
 }) {
   return (
-    <article className="overflow-hidden rounded-[1.75rem] border border-[#E8D6DE] bg-white shadow-[0_16px_44px_rgb(91_58_99/0.07)]">
-      <div className="relative aspect-[5/3] bg-[#F7F1FA]">
+    <article className="overflow-hidden rounded-[1.35rem] border border-[#E8D6DE] bg-white shadow-[0_12px_30px_rgb(91_58_99/0.07)]">
+      <div className="relative aspect-[16/10] bg-[#F7F1FA]">
         <PetAdminMedia pet={pet} />
-        <div className="absolute left-4 top-4">
+        <div className="absolute left-3 top-3">
           <PetStatusBadge status={pet.status} />
         </div>
       </div>
-      <div className="p-5">
+      <div className="p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="font-heading text-3xl text-[#2F2433]">{pet.name}</h2>
-            <p className="mt-1 text-sm font-semibold text-[#A7353F]">
+            <h2 className="font-heading text-2xl leading-tight text-[#2F2433]">
+              {pet.name}
+            </h2>
+            <p className="mt-0.5 text-sm font-semibold text-[#A7353F]">
               {pet.species}
               {pet.breed ? ` · ${pet.breed}` : ""}
             </p>
@@ -326,20 +334,20 @@ function PetAdminCard({
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-[#7B6A80]">
+        <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-[#7B6A80]">
           {pet.age ? <span className="rounded-full bg-[#F7F1FA] px-3 py-1">{pet.age}</span> : null}
           {pet.sex ? <span className="rounded-full bg-[#F7F1FA] px-3 py-1">{pet.sex}</span> : null}
         </div>
 
-        <p className="mt-4 text-sm leading-7 text-[#7B6A80]">
+        <p className="mt-3 text-sm leading-6 text-[#7B6A80]">
           {pet.description ?? "Sin descripción breve."}
         </p>
         {pet.requirements ? (
-          <div className="mt-4 rounded-[1.3rem] bg-[#FFF6F8] p-4">
+          <div className="mt-3 rounded-[1rem] bg-[#FFF6F8] p-3">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#A7353F]">
               Requisitos
             </p>
-            <p className="mt-2 text-sm leading-6 text-[#7B6A80]">
+            <p className="mt-1.5 text-sm leading-6 text-[#7B6A80]">
               {pet.requirements}
             </p>
           </div>
@@ -351,7 +359,7 @@ function PetAdminCard({
           onChange={(event) =>
             onStatusChange(pet, event.target.value as PetAdoptionStatus)
           }
-          className="mt-5 h-11 w-full rounded-full border border-[#E8D6DE] bg-[#FFFDFB] px-4 text-sm font-semibold text-[#5B3A63] focus-visible:ring-3 focus-visible:ring-[#DFA2BA]/45"
+          className="mt-3 h-10 w-full rounded-full border border-[#E8D6DE] bg-[#FFFDFB] px-3 text-sm font-semibold text-[#5B3A63] focus-visible:ring-3 focus-visible:ring-[#DFA2BA]/45"
         >
           {petStatusOptions.map((status) => (
             <option key={status} value={status}>
@@ -417,6 +425,7 @@ function PetForm({
   const [previewUrl, setPreviewUrl] = useState(pet?.image_url ?? "");
   const [imageRemoved, setImageRemoved] = useState(false);
   const objectUrlRef = useRef<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     return () => {
@@ -466,6 +475,10 @@ function PetForm({
     setPreviewUrl("");
     setImageRemoved(true);
     setForm((current) => ({ ...current, image_url: "" }));
+  }
+
+  function openFilePicker() {
+    fileInputRef.current?.click();
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -561,7 +574,7 @@ function PetForm({
         </label>
       </div>
 
-      <div className="rounded-[1.6rem] border border-dashed border-[#E8D6DE] bg-[#FFF6F8]/55 p-4">
+      <div className="rounded-[1.4rem] border border-dashed border-[#E8D6DE] bg-[#FFF6F8]/55 p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-sm font-semibold text-[#5B3A63]">
@@ -586,7 +599,7 @@ function PetForm({
         </div>
 
         {previewUrl ? (
-          <div className="mt-4 overflow-hidden rounded-[1.4rem] border border-white/80 bg-white shadow-sm">
+          <div className="mt-4 overflow-hidden rounded-[1.2rem] border border-white/80 bg-white shadow-sm">
             <img
               src={previewUrl}
               alt="Preview de foto de adopción"
@@ -594,7 +607,7 @@ function PetForm({
             />
           </div>
         ) : (
-          <div className="mt-4 grid min-h-40 place-items-center rounded-[1.4rem] border border-white/80 bg-white/75 text-center">
+          <div className="mt-4 grid min-h-36 place-items-center rounded-[1.2rem] border border-white/80 bg-white/75 text-center">
             <div>
               <ImagePlus className="mx-auto size-8 text-[#A7353F]" />
               <p className="mt-2 text-sm font-semibold text-[#5B3A63]">
@@ -607,12 +620,32 @@ function PetForm({
           </div>
         )}
 
-        <Input
+        <input
+          ref={fileInputRef}
           type="file"
           accept="image/png,image/jpeg,image/webp"
           onChange={handleFileChange}
-          className="mt-4 h-12 cursor-pointer rounded-2xl border-[#E8D6DE] bg-white file:mr-4 file:rounded-full file:border-0 file:bg-[#F7F1FA] file:px-4 file:py-2 file:text-sm file:font-semibold file:text-[#5B3A63]"
+          className="sr-only"
         />
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={openFilePicker}
+            className="h-10 rounded-full border-[#E8D6DE] bg-white text-[#5B3A63] hover:bg-[#FFFDFB]"
+          >
+            <ImagePlus className="size-4" />
+            {selectedFile || previewUrl ? "Cambiar foto" : "Elegir foto"}
+          </Button>
+          {selectedFile ? (
+            <p
+              className="max-w-[14rem] truncate text-xs text-[#7B6A80]"
+              title={selectedFile.name}
+            >
+              {selectedFile.name}
+            </p>
+          ) : null}
+        </div>
       </div>
 
       <label>
@@ -638,17 +671,19 @@ function PetForm({
         />
       </label>
 
-      <Button
-        disabled={isSaving}
-        className="h-12 rounded-full bg-[#A7353F] text-[#FFFDFB] hover:bg-[#8E2D36]"
-      >
-        {isSaving ? <Loader2 className="size-4 animate-spin" /> : null}
-        {isSaving && selectedFile
-          ? "Subiendo imagen..."
-          : pet
-            ? "Guardar cambios"
-            : "Crear adopción"}
-      </Button>
+      <div className="sticky bottom-0 z-10 bg-[#FFFDFB] pt-1">
+        <Button
+          disabled={isSaving}
+          className="h-12 w-full rounded-full bg-[#A7353F] text-[#FFFDFB] hover:bg-[#8E2D36]"
+        >
+          {isSaving ? <Loader2 className="size-4 animate-spin" /> : null}
+          {isSaving && selectedFile
+            ? "Subiendo imagen..."
+            : pet
+              ? "Guardar cambios"
+              : "Crear adopción"}
+        </Button>
+      </div>
     </form>
   );
 }

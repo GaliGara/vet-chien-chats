@@ -29,9 +29,12 @@ export default function RootLayout({
   return (
     <html
       lang="es"
-      className={`${inter.variable} ${playfair.variable} h-full scroll-smooth antialiased`}
+      className={`${inter.variable} ${playfair.variable} h-full antialiased`}
     >
-      <body className="min-h-full bg-background text-foreground">
+      <body
+        className="min-h-full scroll-smooth bg-background text-foreground"
+        data-scroll-behavior="smooth"
+      >
         {children}
         <AppToaster />
       </body>

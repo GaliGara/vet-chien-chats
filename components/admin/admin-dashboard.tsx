@@ -48,7 +48,7 @@ export function AdminDashboard() {
       title="Resumen"
       description="Una vista rápida para revisar citas recientes, adopciones disponibles y servicios activos desde celular."
     >
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Total citas"
           value={stats.totalAppointments}
@@ -75,27 +75,27 @@ export function AdminDashboard() {
         />
       </div>
 
-      <section className="mt-5 rounded-[2rem] border border-[#E8D6DE] bg-[#FFF6F8] p-5">
+      <section className="mt-4 rounded-[1.35rem] border border-[#E8D6DE] bg-[#FFF6F8] p-4">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="font-heading text-3xl text-[#2F2433]">
+            <h2 className="font-heading text-2xl text-[#2F2433]">
               Accesos rápidos
             </h2>
-            <p className="mt-1 text-sm leading-6 text-[#7B6A80]">
+            <p className="mt-1 text-xs leading-5 text-[#7B6A80] sm:text-sm">
               Diseñados para resolver lo más frecuente desde celular.
             </p>
           </div>
           <div className="grid gap-2 sm:flex">
             <Button
               asChild
-              className="h-11 rounded-full bg-[#A7353F] text-[#FFFDFB] hover:bg-[#8E2D36]"
+              className="h-10 rounded-full bg-[#A7353F] text-[#FFFDFB] hover:bg-[#8E2D36]"
             >
               <Link href="/admin/citas">Gestionar citas</Link>
             </Button>
             <Button
               asChild
               variant="outline"
-              className="h-11 rounded-full border-[#E8D6DE] bg-white text-[#5B3A63]"
+              className="h-10 rounded-full border-[#E8D6DE] bg-white text-[#5B3A63]"
             >
               <Link href="/admin/adopciones">Gestionar adopciones</Link>
             </Button>
@@ -103,17 +103,17 @@ export function AdminDashboard() {
         </div>
       </section>
 
-      <div className="mt-6 grid gap-5 lg:grid-cols-2">
-        <section className="rounded-[2rem] border border-[#E8D6DE] bg-white p-5 shadow-[0_16px_44px_rgb(91_58_99/0.07)]">
-          <h2 className="font-heading text-3xl text-[#2F2433]">
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+        <section className="rounded-[1.35rem] border border-[#E8D6DE] bg-white p-4 shadow-[0_12px_30px_rgb(91_58_99/0.07)]">
+          <h2 className="font-heading text-2xl text-[#2F2433]">
             Citas recientes
           </h2>
-          <div className="mt-5 grid gap-3">
+          <div className="mt-3 grid gap-2.5">
             {appointments.length > 0 ? (
               appointments.map((appointment) => (
                 <article
                   key={appointment.id}
-                  className="rounded-[1.4rem] border border-[#E8D6DE] bg-[#FFFDFB] p-4"
+                  className="rounded-[1rem] border border-[#E8D6DE] bg-[#FFFDFB] p-3"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -138,18 +138,18 @@ export function AdminDashboard() {
           </div>
         </section>
 
-        <section className="rounded-[2rem] border border-[#E8D6DE] bg-white p-5 shadow-[0_16px_44px_rgb(91_58_99/0.07)]">
-          <h2 className="font-heading text-3xl text-[#2F2433]">
+      <section className="rounded-[1.35rem] border border-[#E8D6DE] bg-white p-4 shadow-[0_12px_30px_rgb(91_58_99/0.07)]">
+          <h2 className="font-heading text-2xl text-[#2F2433]">
             Adopciones
           </h2>
-          <div className="mt-5 grid gap-3">
+          <div className="mt-3 grid gap-2.5">
             {pets.length > 0 ? (
               pets.map((pet) => (
                 <article
                   key={pet.id}
-                  className="flex items-center gap-3 rounded-[1.4rem] border border-[#E8D6DE] bg-[#FFFDFB] p-3"
+                  className="flex items-center gap-3 rounded-[1rem] border border-[#E8D6DE] bg-[#FFFDFB] p-2.5"
                 >
-                  <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-[#FFF6F8] text-[#A7353F]">
+                  <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#FFF6F8] text-[#A7353F]">
                     <Heart className="size-5" />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -186,18 +186,18 @@ function StatCard({
   loading: boolean;
 }) {
   return (
-    <article className="rounded-[1.75rem] border border-[#E8D6DE] bg-white p-5 shadow-[0_16px_44px_rgb(91_58_99/0.07)]">
-      <div className="mb-5 flex items-center justify-between">
-        <span className="grid size-11 place-items-center rounded-2xl bg-[#FFF6F8] text-[#A7353F]">
-          <Icon className="size-5" />
+    <article className="rounded-[1.2rem] border border-[#E8D6DE] bg-white p-4 shadow-[0_12px_30px_rgb(91_58_99/0.07)]">
+      <div className="mb-3 flex items-center justify-between">
+        <span className="grid size-9 place-items-center rounded-xl bg-[#FFF6F8] text-[#A7353F]">
+          <Icon className="size-4" />
         </span>
       </div>
       {loading ? (
-        <div className="h-10 w-16 animate-pulse rounded-full bg-[#F7F1FA]" />
+        <div className="h-8 w-14 animate-pulse rounded-full bg-[#F7F1FA]" />
       ) : (
-        <p className="font-heading text-5xl text-[#2F2433]">{value}</p>
+        <p className="font-heading text-4xl text-[#2F2433] sm:text-5xl">{value}</p>
       )}
-      <p className="mt-2 text-sm font-semibold text-[#7B6A80]">{label}</p>
+      <p className="mt-1 text-xs font-semibold text-[#7B6A80] sm:text-sm">{label}</p>
     </article>
   );
 }

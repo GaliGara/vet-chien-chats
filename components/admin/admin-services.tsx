@@ -14,7 +14,7 @@ import {
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
-import { fallbackServices } from "@/constants/site";
+import { fallbackServices, getServiceIconFromName } from "@/constants/site";
 import type { Service, ServiceInput } from "@/types/database";
 import {
   createService,
@@ -30,6 +30,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -59,7 +60,6 @@ const serviceSchema = z.object({
   duration_minutes: nonNegativeIntegerText(
     "La duración debe ser un número entero positivo."
   ),
-  icon: z.string().optional(),
   active: z.enum(["true", "false"]),
   sort_order: nonNegativeIntegerText(
     "El orden debe ser un número entero positivo."
@@ -73,7 +73,6 @@ const emptyServiceValues: ServiceFormValues = {
   description: "",
   price_from: "",
   duration_minutes: "",
-  icon: "stethoscope",
   active: "true",
   sort_order: "",
 };
@@ -188,17 +187,22 @@ export function AdminServices() {
               Nuevo servicio
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-h-[88svh] overflow-y-auto rounded-[2rem] border-[#E8D6DE] bg-[#FFFDFB] sm:max-w-2xl">
-            <DialogHeader>
+          <DialogContent className="h-[min(90dvh,780px)] overflow-hidden rounded-[2rem] border-[#E8D6DE] bg-[#FFFDFB] p-0 sm:max-w-2xl">
+            <DialogHeader className="border-b border-[#E8D6DE] bg-[#FFFDFB] px-5 pb-3 pt-5">
               <DialogTitle className="font-heading text-3xl text-[#2F2433]">
                 {editingService ? "Editar servicio" : "Nuevo servicio"}
               </DialogTitle>
+              <DialogDescription className="text-sm text-[#7B6A80]">
+                Ajusta nombre, duracion, precio y estado del servicio.
+              </DialogDescription>
             </DialogHeader>
-            <ServiceForm
-              key={editingService?.id ?? "new"}
-              service={editingService}
-              onSaved={handleSaved}
-            />
+            <div className="modal-scroll min-h-0 flex-1 overflow-y-auto px-5 pb-5">
+              <ServiceForm
+                key={editingService?.id ?? "new"}
+                service={editingService}
+                onSaved={handleSaved}
+              />
+            </div>
           </DialogContent>
         </Dialog>
       </div>
@@ -251,20 +255,20 @@ function ServiceCard({
   onToggle: (service: Service) => void;
 }) {
   return (
-    <article className="rounded-[1.75rem] border border-[#E8D6DE] bg-white p-5 shadow-[0_16px_44px_rgb(91_58_99/0.07)]">
-      <div className="mb-6 flex items-start justify-between gap-3">
-        <span className="grid size-12 place-items-center rounded-2xl bg-[#F7F1FA] text-[#5B3A63]">
-          <BriefcaseBusiness className="size-6" />
+    <article className="rounded-[1.35rem] border border-[#E8D6DE] bg-white p-4 shadow-[0_12px_30px_rgb(91_58_99/0.07)]">
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <span className="grid size-10 place-items-center rounded-xl bg-[#F7F1FA] text-[#5B3A63]">
+          <BriefcaseBusiness className="size-5" />
         </span>
-        <Badge className="rounded-full bg-[#FFF6F8] px-3 py-1 text-[#A7353F]">
+        <Badge className="rounded-full bg-[#FFF6F8] px-2.5 py-1 text-xs text-[#A7353F]">
           {service.active === false ? "inactivo" : "activo"}
         </Badge>
       </div>
-      <h2 className="font-heading text-3xl text-[#2F2433]">{service.name}</h2>
-      <p className="mt-3 text-sm leading-7 text-[#7B6A80]">
+      <h2 className="font-heading text-2xl text-[#2F2433]">{service.name}</h2>
+      <p className="mt-2 text-sm leading-6 text-[#7B6A80]">
         {service.description ?? "Servicio preparado para reserva y seguimiento."}
       </p>
-      <div className="mt-5 flex flex-wrap gap-2 text-xs font-semibold text-[#5B3A63]">
+      <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-[#5B3A63]">
         {service.duration_minutes ? (
           <span className="inline-flex items-center gap-2 rounded-full bg-[#F7F1FA] px-3 py-1">
             <Clock className="size-3.5" />
@@ -276,18 +280,13 @@ function ServiceCard({
             Desde ${service.price_from}
           </span>
         ) : null}
-        {typeof service.sort_order === "number" ? (
-          <span className="rounded-full bg-[#F7F1FA] px-3 py-1">
-            Orden {service.sort_order}
-          </span>
-        ) : null}
       </div>
-      <div className="mt-5 grid gap-2 sm:grid-cols-2">
+      <div className="mt-4 grid gap-2 sm:grid-cols-2">
         <Button
           type="button"
           variant="outline"
           onClick={() => onEdit(service)}
-          className="h-11 rounded-full border-[#E8D6DE] bg-white text-[#5B3A63]"
+          className="h-10 rounded-full border-[#E8D6DE] bg-white text-[#5B3A63]"
         >
           <Edit3 className="size-4" />
           Editar
@@ -297,7 +296,7 @@ function ServiceCard({
           variant="outline"
           disabled={toggling || service.id.startsWith("fallback-")}
           onClick={() => onToggle(service)}
-          className="h-11 rounded-full border-[#E8D6DE] bg-white text-[#5B3A63]"
+          className="h-10 rounded-full border-[#E8D6DE] bg-white text-[#5B3A63]"
         >
           {toggling ? <Loader2 className="size-4 animate-spin" /> : <Power className="size-4" />}
           {service.active === false ? "Activar" : "Desactivar"}
@@ -331,7 +330,6 @@ function ServiceForm({
             typeof service.duration_minutes === "number"
               ? String(service.duration_minutes)
               : "",
-          icon: service.icon ?? "",
           active: service.active === false ? "false" : "true",
           sort_order:
             typeof service.sort_order === "number" ? String(service.sort_order) : "",
@@ -351,7 +349,7 @@ function ServiceForm({
         values.duration_minutes === "" || values.duration_minutes === undefined
           ? null
           : Number(values.duration_minutes),
-      icon: values.icon?.trim() || null,
+      icon: getServiceIconFromName(values.name.trim()),
       active: values.active === "true",
       sort_order:
         values.sort_order === "" || values.sort_order === undefined
@@ -376,7 +374,7 @@ function ServiceForm({
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4">
+    <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4 pb-2">
       <FormField label="Nombre" error={errors.name?.message}>
         <Input {...register("name")} className="h-12 rounded-2xl border-[#E8D6DE] bg-white" />
       </FormField>
@@ -390,10 +388,11 @@ function ServiceForm({
         <FormField label="Duración en minutos" error={errors.duration_minutes?.message}>
           <Input {...register("duration_minutes")} type="number" min="0" step="1" className="h-12 rounded-2xl border-[#E8D6DE] bg-white" />
         </FormField>
-        <FormField label="Icono" error={errors.icon?.message}>
-          <Input {...register("icon")} placeholder="stethoscope" className="h-12 rounded-2xl border-[#E8D6DE] bg-white" />
-        </FormField>
-        <FormField label="Orden" error={errors.sort_order?.message}>
+        <FormField
+          label="Orden de aparición"
+          error={errors.sort_order?.message}
+          hint="Opcional. Menor número = aparece antes."
+        >
           <Input {...register("sort_order")} type="number" min="0" step="1" className="h-12 rounded-2xl border-[#E8D6DE] bg-white" />
         </FormField>
         <FormField label="Activo" error={errors.active?.message}>
@@ -403,13 +402,15 @@ function ServiceForm({
           </select>
         </FormField>
       </div>
-      <Button
-        disabled={isSaving}
-        className="h-12 rounded-full bg-[#A7353F] text-[#FFFDFB] hover:bg-[#8E2D36]"
-      >
-        {isSaving ? <Loader2 className="size-4 animate-spin" /> : null}
-        {service ? "Guardar cambios" : "Crear servicio"}
-      </Button>
+      <div className="sticky bottom-0 z-10 bg-[#FFFDFB] pt-1">
+        <Button
+          disabled={isSaving}
+          className="h-12 w-full rounded-full bg-[#A7353F] text-[#FFFDFB] hover:bg-[#8E2D36]"
+        >
+          {isSaving ? <Loader2 className="size-4 animate-spin" /> : null}
+          {service ? "Guardar cambios" : "Crear servicio"}
+        </Button>
+      </div>
     </form>
   );
 }
@@ -418,10 +419,12 @@ function FormField({
   label,
   error,
   children,
+  hint,
 }: {
   label: string;
   error?: string;
   children: React.ReactNode;
+  hint?: string;
 }) {
   return (
     <label>
@@ -429,6 +432,9 @@ function FormField({
         {label}
       </span>
       {children}
+      {hint ? (
+        <span className="mt-1 block text-xs text-[#7B6A80]">{hint}</span>
+      ) : null}
       {error ? (
         <span className="mt-2 block text-xs font-medium text-[#A7353F]">
           {error}

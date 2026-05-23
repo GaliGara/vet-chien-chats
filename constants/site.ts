@@ -206,3 +206,44 @@ export const petStatusOptions: PetAdoptionStatus[] = [
   "adoptado",
   "oculto",
 ];
+
+export function getServiceIconFromName(name: string) {
+  const normalized = name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+  if (normalized.includes("bano + corte") || normalized.includes("bano y corte")) {
+    return "sparkles";
+  }
+
+  if (normalized.includes("consulta")) {
+    return "stethoscope";
+  }
+
+  if (normalized.includes("vacun")) {
+    return "syringe";
+  }
+
+  if (normalized.includes("desparasit")) {
+    return "shield";
+  }
+
+  if (normalized.includes("seguimiento")) {
+    return "heart-pulse";
+  }
+
+  if (normalized.includes("adop")) {
+    return "heart-handshake";
+  }
+
+  if (normalized.includes("corte")) {
+    return "scissors";
+  }
+
+  if (normalized.includes("bano") || normalized.includes("estetica")) {
+    return "bath";
+  }
+
+  return "paw-print";
+}

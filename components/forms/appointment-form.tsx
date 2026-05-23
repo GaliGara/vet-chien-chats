@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CalendarDays, Loader2, MessageCircle, Send } from "lucide-react";
+import { CalendarDays, Loader2, MailCheck, MessageCircle, Send } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -10,31 +10,56 @@ import { appointmentServiceOptions, brand } from "@/constants/site";
 import { createAppointment } from "@/lib/supabase-queries";
 import { getSupabaseErrorMessage } from "@/lib/supabase-errors";
 import { buildWhatsAppUrl } from "@/lib/format";
-import type { AppointmentInsert } from "@/types/database";
+import type { AppointmentInsert, ContactChannel } from "@/types/database";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
-const appointmentSchema = z.object({
-  client_name: z.string().min(2, "Escribe tu nombre completo."),
-  phone: z
-    .string()
-    .trim()
-    .min(8, "Agrega un teléfono válido.")
-    .regex(/^[+()\d\s-]+$/, "Usa solo numeros, espacios o +."),
-  email: z
-    .union([z.string().email("Agrega un email valido."), z.literal("")])
-    .optional(),
-  pet_name: z.string().min(2, "Cuentanos el nombre de tu mascota."),
-  pet_type: z.string().min(1, "Selecciona el tipo de mascota."),
-  service: z.string().min(1, "Selecciona un servicio."),
-  preferred_date: z.string().min(1, "Elige una fecha."),
-  preferred_time: z.string().min(1, "Elige una hora."),
-  contact_channel: z.enum(["whatsapp", "telefono", "email"], {
-    message: "Selecciona un canal de contacto.",
-  }),
-  message: z.string().max(600, "Maximo 600 caracteres.").optional(),
-});
+const appointmentSchema = z
+  .object({
+    client_name: z.string().min(2, "Escribe tu nombre completo."),
+    phone: z.string().trim().optional(),
+    email: z
+      .union([z.string().email("Agrega un email valido."), z.literal("")])
+      .optional(),
+    pet_name: z.string().min(2, "Cuentanos el nombre de tu mascota."),
+    pet_type: z.string().min(1, "Selecciona el tipo de mascota."),
+    service: z.string().min(1, "Selecciona un servicio."),
+    preferred_date: z.string().min(1, "Elige una fecha."),
+    preferred_time: z.string().min(1, "Elige una hora."),
+    contact_channel: z.enum(["whatsapp", "telefono", "email"], {
+      message: "Selecciona un canal de contacto.",
+    }),
+    message: z.string().max(600, "Maximo 600 caracteres.").optional(),
+  })
+  .superRefine((values, context) => {
+    const phone = values.phone?.trim() || "";
+    const email = values.email?.trim() || "";
+
+    if (phone && !/^[+()\d\s-]{6,}$/.test(phone)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Si agregas telefono, usa numeros, espacios o +.",
+        path: ["phone"],
+      });
+    }
+
+    if (values.contact_channel === "email" && !email) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Para elegir contacto por correo, agrega tu email.",
+        path: ["email"],
+      });
+    }
+
+    if ((values.contact_channel === "whatsapp" || values.contact_channel === "telefono") && !phone) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Para este canal, agrega un telefono.",
+        path: ["phone"],
+      });
+    }
+  });
 
 type AppointmentFormValues = z.infer<typeof appointmentSchema>;
 
@@ -51,8 +76,14 @@ const defaultValues: AppointmentFormValues = {
   message: "",
 };
 
+type SubmitSummary = {
+  channel: ContactChannel;
+  whatsappUrl: string;
+  emailProvided: boolean;
+};
+
 export function AppointmentForm() {
-  const [lastWhatsAppUrl, setLastWhatsAppUrl] = useState("");
+  const [submitSummary, setSubmitSummary] = useState<SubmitSummary | null>(null);
   const {
     register,
     handleSubmit,
@@ -65,6 +96,7 @@ export function AppointmentForm() {
   });
 
   const watchedValues = useWatch({ control });
+  const selectedChannel = watchedValues.contact_channel ?? "whatsapp";
 
   const whatsappUrl = useMemo(() => {
     const message = [
@@ -88,8 +120,10 @@ export function AppointmentForm() {
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
   async function onSubmit(values: AppointmentFormValues) {
+    const normalizedPhone = values.phone?.trim() || "";
+    const normalizedEmail = values.email?.trim() || "";
     const followUpWhatsAppUrl = buildWhatsAppUrl(
-      undefined,
+      normalizedPhone || undefined,
       [
         `Hola, acabo de enviar mi solicitud de cita en ${brand.name}.`,
         `Mi nombre es ${values.client_name}.`,
@@ -102,8 +136,8 @@ export function AppointmentForm() {
 
     const payload: AppointmentInsert = {
       client_name: values.client_name.trim(),
-      phone: values.phone.trim(),
-      email: values.email?.trim() || null,
+      phone: normalizedPhone || "No proporcionado",
+      email: normalizedEmail || null,
       pet_name: values.pet_name.trim(),
       pet_type: values.pet_type,
       service: values.service,
@@ -117,16 +151,17 @@ export function AppointmentForm() {
     try {
       await createAppointment(payload);
       const emailSent = await notifyAppointmentEmails(payload);
-      toast.success("Cita registrada", {
-        description: emailSent
-          ? "Te contactaremos pronto por tu canal preferido."
-          : "La cita quedó guardada. No pudimos enviar el correo automático, pero te contactaremos pronto.",
-        action: {
-          label: "WhatsApp",
-          onClick: () => window.open(followUpWhatsAppUrl, "_blank", "noreferrer"),
-        },
+      const toastOptions = buildChannelToastOptions(
+        values.contact_channel,
+        followUpWhatsAppUrl,
+        emailSent
+      );
+      toast.success("Cita registrada", toastOptions);
+      setSubmitSummary({
+        channel: values.contact_channel,
+        whatsappUrl: followUpWhatsAppUrl,
+        emailProvided: Boolean(normalizedEmail),
       });
-      setLastWhatsAppUrl(followUpWhatsAppUrl);
       reset(defaultValues);
     } catch (error) {
       toast.error("No pudimos guardar la cita", {
@@ -145,12 +180,9 @@ export function AppointmentForm() {
           <CalendarDays className="size-6" />
         </span>
         <div>
-          <h3 className="font-heading text-3xl text-[#2F2433]">
-            Reserva tu cita
-          </h3>
+          <h3 className="font-heading text-3xl text-[#2F2433]">Reserva tu cita</h3>
           <p className="mt-1 text-sm leading-6 text-[#7B6A80]">
-            Comparte los detalles y te confirmaremos con una atención clara y
-            cercana.
+            Comparte los detalles y te confirmaremos por tu canal preferido.
           </p>
         </div>
       </div>
@@ -165,7 +197,10 @@ export function AppointmentForm() {
             placeholder="Tu nombre"
           />
         </Field>
-        <Field label="Telefono" error={errors.phone?.message}>
+        <Field
+          label={selectedChannel === "email" ? "Telefono opcional" : "Telefono"}
+          error={errors.phone?.message}
+        >
           <Input
             {...register("phone")}
             aria-invalid={Boolean(errors.phone)}
@@ -243,7 +278,7 @@ export function AppointmentForm() {
             className="h-12 w-full rounded-2xl border border-[#E8D6DE] bg-[#FFFDFB] px-3 text-sm text-[#2F2433] focus-visible:ring-3 focus-visible:ring-[#DFA2BA]/45"
           >
             <option value="whatsapp">WhatsApp</option>
-              <option value="telefono">Teléfono</option>
+            <option value="telefono">Llamada</option>
             <option value="email">Email</option>
           </select>
         </Field>
@@ -274,35 +309,125 @@ export function AppointmentForm() {
           )}
           {isSubmitting ? "Guardando..." : "Enviar solicitud"}
         </Button>
-        <Button
-          type="button"
-          asChild
-          variant="outline"
-          className="h-12 rounded-full border-[#E8D6DE] bg-white text-[#5B3A63] hover:bg-[#FFF6F8]"
-        >
-          <a href={whatsappUrl} target="_blank" rel="noreferrer">
-            <MessageCircle className="size-4" />
-            Continuar por WhatsApp
-          </a>
-        </Button>
+        <ChannelSecondaryAction
+          channel={selectedChannel}
+          whatsappUrl={whatsappUrl}
+          emailValue={watchedValues.email?.trim() || ""}
+        />
       </div>
 
-      {lastWhatsAppUrl ? (
-        <div className="mt-5 rounded-[1.5rem] border border-[#D9C6E8] bg-[#F7F1FA]/70 p-4 text-sm leading-6 text-[#5B3A63]">
-          Tu solicitud quedó registrada. Si quieres acelerar la confirmación,
-          puedes abrir WhatsApp con el resumen ya preparado.
-          <a
-            href={lastWhatsAppUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-3 inline-flex font-semibold text-[#A7353F] underline-offset-4 hover:underline"
-          >
-            Continuar conversación
-          </a>
-        </div>
+      {submitSummary ? (
+        <ConfirmationBox summary={submitSummary} />
       ) : null}
     </form>
   );
+}
+
+function ChannelSecondaryAction({
+  channel,
+  whatsappUrl,
+  emailValue,
+}: {
+  channel: ContactChannel;
+  whatsappUrl: string;
+  emailValue: string;
+}) {
+  if (channel === "email") {
+    return (
+      <Button
+        type="button"
+        variant="outline"
+        disabled={!emailValue}
+        onClick={() => {
+          if (emailValue) {
+            window.location.href = `mailto:${emailValue}`;
+          }
+        }}
+        className="h-12 rounded-full border-[#E8D6DE] bg-white text-[#5B3A63] hover:bg-[#FFF6F8]"
+      >
+        <MailCheck className="size-4" />
+        Revisar correo
+      </Button>
+    );
+  }
+
+  return (
+    <Button
+      type="button"
+      asChild
+      variant="outline"
+      className="h-12 rounded-full border-[#E8D6DE] bg-white text-[#5B3A63] hover:bg-[#FFF6F8]"
+    >
+      <a href={whatsappUrl} target="_blank" rel="noreferrer">
+        <MessageCircle className="size-4" />
+        Continuar por WhatsApp
+      </a>
+    </Button>
+  );
+}
+
+function ConfirmationBox({ summary }: { summary: SubmitSummary }) {
+  const channelMessageMap: Record<ContactChannel, string> = {
+    whatsapp:
+      "Tu solicitud quedo registrada. Puedes continuar por WhatsApp para agilizar la confirmacion.",
+    telefono:
+      "Tu solicitud quedo registrada. Te contactaremos por llamada para confirmar.",
+    email:
+      "Tu solicitud quedo registrada. Te enviaremos la confirmacion por correo.",
+  };
+
+  return (
+    <div className="mt-5 rounded-[1.5rem] border border-[#D9C6E8] bg-[#F7F1FA]/70 p-4 text-sm leading-6 text-[#5B3A63]">
+      {channelMessageMap[summary.channel]}
+      {summary.channel === "whatsapp" ? (
+        <a
+          href={summary.whatsappUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-3 inline-flex font-semibold text-[#A7353F] underline-offset-4 hover:underline"
+        >
+          Continuar conversacion
+        </a>
+      ) : null}
+      {summary.channel === "email" && summary.emailProvided ? (
+        <p className="mt-2 text-xs text-[#7B6A80]">
+          Enviaremos copia al correo que registraste.
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function buildChannelToastOptions(
+  channel: ContactChannel,
+  whatsappUrl: string,
+  emailSent: boolean
+) {
+  if (channel === "email") {
+    return {
+      description: emailSent
+        ? "Te enviaremos confirmacion por correo."
+        : "La cita se guardo. El correo no pudo enviarse ahora.",
+    };
+  }
+
+  if (channel === "telefono") {
+    return {
+      description: emailSent
+        ? "Te contactaremos por llamada para confirmar."
+        : "La cita se guardo. Te confirmaremos por llamada.",
+    };
+  }
+
+  return {
+    description: emailSent
+      ? "Te contactaremos pronto por WhatsApp."
+      : "La cita se guardo. El correo automatico no pudo enviarse.",
+    action: {
+      label: "WhatsApp",
+      onClick: () => window.open(whatsappUrl, "_blank", "noreferrer"),
+    },
+  };
 }
 
 async function notifyAppointmentEmails(payload: AppointmentInsert) {

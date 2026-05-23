@@ -121,7 +121,7 @@ export function AdminShell({ title, description, children }: AdminShellProps) {
         ) : null}
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-6 pb-28 sm:px-6 sm:pb-8">
+      <main className="mx-auto max-w-6xl px-4 py-5 pb-24 sm:px-6 sm:pb-8">
         {isLoading ? (
           <div className="rounded-[2rem] border border-[#E8D6DE] bg-white p-8">
             <div className="h-6 w-44 animate-pulse rounded-full bg-[#F7F1FA]" />
@@ -134,7 +134,7 @@ export function AdminShell({ title, description, children }: AdminShellProps) {
                 <ShieldCheck className="size-3.5" />
                 Panel admin
               </p>
-              <h1 className="font-heading text-4xl leading-tight text-[#2F2433] sm:text-5xl">
+              <h1 className="font-heading text-3xl leading-tight text-[#2F2433] sm:text-5xl">
                 {title}
               </h1>
               <p className="mt-3 max-w-2xl text-sm leading-7 text-[#7B6A80]">
@@ -184,7 +184,7 @@ export function AdminShell({ title, description, children }: AdminShellProps) {
 
       {hasAccess ? (
         <nav
-          className="fixed inset-x-0 bottom-0 z-40 border-t border-[#E8D6DE] bg-[#FFFDFB]/94 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-18px_40px_rgb(91_58_99/0.10)] backdrop-blur-xl sm:hidden"
+          className="fixed inset-x-0 bottom-0 z-40 border-t border-[#E8D6DE] bg-[#FFFDFB]/92 px-2.5 pb-[max(0.55rem,env(safe-area-inset-bottom))] pt-1.5 shadow-[0_-10px_24px_rgb(91_58_99/0.09)] backdrop-blur-xl sm:hidden"
           aria-label="Admin móvil"
         >
           <AdminNav pathname={pathname} compact />
@@ -214,7 +214,7 @@ function AdminNav({
             className={cn(
               "inline-flex min-w-fit items-center justify-center gap-2 rounded-full border font-semibold transition focus-visible:ring-3 focus-visible:ring-[#DFA2BA]/45",
               compact
-                ? "min-w-0 flex-col gap-1 px-2 py-2 text-[0.68rem]"
+                ? "min-w-0 flex-col gap-0.5 px-1.5 py-1.5 text-[0.62rem]"
                 : "px-4 py-2 text-sm",
               isActive
                 ? "border-[#A7353F] bg-[#A7353F] text-[#FFFDFB]"

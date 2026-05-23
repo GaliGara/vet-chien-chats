@@ -177,7 +177,21 @@ export async function createService(input: ServiceInput) {
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    if (isMissingDurationMinutesError(error)) {
+      const { data: retryData, error: retryError } = await supabase
+        .from("services")
+        .insert(withoutDurationMinutes(input))
+        .select()
+        .single();
+
+      if (retryError) throw retryError;
+      return retryData as Service;
+    }
+
+    throw error;
+  }
+
   return data as Service;
 }
 
@@ -193,12 +207,39 @@ export async function updateService(id: string, input: Partial<ServiceInput>) {
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    if (isMissingDurationMinutesError(error)) {
+      const { data: retryData, error: retryError } = await supabase
+        .from("services")
+        .update(withoutDurationMinutes(input))
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (retryError) throw retryError;
+      return retryData as Service;
+    }
+
+    throw error;
+  }
+
   return data as Service;
 }
 
 export async function toggleServiceActive(id: string, active: boolean) {
   return updateService(id, { active });
+}
+
+function isMissingDurationMinutesError(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+  const message = "message" in error ? String(error.message) : "";
+  return message.toLowerCase().includes("duration_minutes");
+}
+
+function withoutDurationMinutes<T extends Partial<ServiceInput>>(input: T) {
+  const next = { ...input };
+  delete next.duration_minutes;
+  return next;
 }
 
 export async function getAdminStats(): Promise<AdminStats> {

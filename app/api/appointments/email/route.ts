@@ -5,7 +5,7 @@ export const runtime = "nodejs";
 
 const emailAppointmentSchema = z.object({
   client_name: z.string().min(2).max(120),
-  phone: z.string().min(8).max(40),
+  phone: z.union([z.string().max(40), z.null()]).optional(),
   email: z.union([z.string().email(), z.null()]).optional(),
   pet_name: z.string().min(1).max(120),
   pet_type: z.string().min(1).max(60),
@@ -130,7 +130,7 @@ function baseEmail(content: string) {
 function detailsTable(appointment: EmailAppointment) {
   const rows = [
     ["Cliente", appointment.client_name],
-    ["Telefono", appointment.phone],
+    ["Telefono", appointment.phone || "No proporcionado"],
     ["Correo", appointment.email ?? "No proporcionado"],
     ["Mascota", appointment.pet_name],
     ["Tipo", appointment.pet_type],
@@ -181,7 +181,7 @@ function renderClientText(appointment: EmailAppointment) {
 function detailsText(appointment: EmailAppointment) {
   return [
     `Cliente: ${appointment.client_name}`,
-    `Telefono: ${appointment.phone}`,
+    `Telefono: ${appointment.phone || "No proporcionado"}`,
     `Correo: ${appointment.email ?? "No proporcionado"}`,
     `Mascota: ${appointment.pet_name}`,
     `Tipo: ${appointment.pet_type}`,

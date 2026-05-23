@@ -94,6 +94,13 @@ create table if not exists public.pets_for_adoption (
 
 El codigo actual usa `active boolean`, no `status`.
 
+Si tu tabla ya existe y aun no tiene `duration_minutes`, ejecuta:
+
+```sql
+alter table public.services
+add column if not exists duration_minutes integer;
+```
+
 ```sql
 create table if not exists public.services (
   id uuid primary key default gen_random_uuid(),
