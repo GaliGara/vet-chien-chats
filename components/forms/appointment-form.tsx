@@ -1,12 +1,24 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CalendarDays, Loader2, MailCheck, MessageCircle, Send } from "lucide-react";
+import {
+  CalendarDays,
+  CheckCircle2,
+  Loader2,
+  MailCheck,
+  MessageCircle,
+  Send,
+} from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { appointmentServiceOptions, brand } from "@/constants/site";
+import {
+  APPOINTMENT_TIME_SLOTS,
+  formatTimeSlotLabel,
+  normalizeTimeSlot,
+} from "@/lib/appointment-slots";
 import { createAppointment } from "@/lib/supabase-queries";
 import { getSupabaseErrorMessage } from "@/lib/supabase-errors";
 import { buildWhatsAppUrl } from "@/lib/format";
@@ -52,7 +64,11 @@ const appointmentSchema = z
       });
     }
 
-    if ((values.contact_channel === "whatsapp" || values.contact_channel === "telefono") && !phone) {
+    if (
+      (values.contact_channel === "whatsapp" ||
+        values.contact_channel === "telefono") &&
+      !phone
+    ) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Para este canal, agrega un telefono.",
@@ -82,13 +98,19 @@ type SubmitSummary = {
   emailProvided: boolean;
 };
 
+type EmailNotificationResult = "sent" | "not_configured" | "failed";
+
 export function AppointmentForm() {
   const [submitSummary, setSubmitSummary] = useState<SubmitSummary | null>(null);
+  const [bookedSlots, setBookedSlots] = useState<string[]>([]);
+  const [isLoadingAvailability, setIsLoadingAvailability] = useState(false);
+  const [availabilityError, setAvailabilityError] = useState("");
   const {
     register,
     handleSubmit,
     reset,
     control,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<AppointmentFormValues>({
     resolver: zodResolver(appointmentSchema),
@@ -96,7 +118,82 @@ export function AppointmentForm() {
   });
 
   const watchedValues = useWatch({ control });
+  const selectedDate = watchedValues.preferred_date ?? "";
+  const selectedTime = watchedValues.preferred_time ?? "";
   const selectedChannel = watchedValues.contact_channel ?? "whatsapp";
+
+  const bookedSet = useMemo(() => new Set(bookedSlots), [bookedSlots]);
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadAvailability() {
+      if (!selectedDate) {
+        setBookedSlots([]);
+        setAvailabilityError("");
+        return;
+      }
+
+      setIsLoadingAvailability(true);
+      setAvailabilityError("");
+
+      try {
+        const response = await fetch(
+          `/api/appointments/availability?date=${encodeURIComponent(selectedDate)}`,
+          { method: "GET" }
+        );
+
+        if (!isMounted) return;
+
+        if (!response.ok) {
+          if (response.status === 503) {
+            setBookedSlots([]);
+            setAvailabilityError(
+              "No pudimos validar disponibilidad en este momento. Aun puedes enviar tu solicitud."
+            );
+            return;
+          }
+
+          setBookedSlots([]);
+          setAvailabilityError("No se pudo cargar disponibilidad de horarios.");
+          return;
+        }
+
+        const payload = (await response.json()) as {
+          booked_times?: string[];
+        };
+
+        const normalized = (payload.booked_times ?? [])
+          .map((time) => normalizeTimeSlot(time))
+          .filter((time): time is string => Boolean(time));
+
+        setBookedSlots(normalized);
+      } catch {
+        if (!isMounted) return;
+        setBookedSlots([]);
+        setAvailabilityError(
+          "No se pudo validar disponibilidad de horarios por ahora."
+        );
+      } finally {
+        if (isMounted) {
+          setIsLoadingAvailability(false);
+        }
+      }
+    }
+
+    loadAvailability();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedDate]);
+
+  useEffect(() => {
+    if (selectedTime && bookedSet.has(selectedTime)) {
+      setValue("preferred_time", "", { shouldValidate: true });
+    }
+  }, [bookedSet, selectedTime, setValue]);
 
   const whatsappUrl = useMemo(() => {
     const message = [
@@ -116,8 +213,6 @@ export function AppointmentForm() {
 
     return buildWhatsAppUrl(undefined, message);
   }, [watchedValues]);
-
-  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
   async function onSubmit(values: AppointmentFormValues) {
     const normalizedPhone = values.phone?.trim() || "";
@@ -150,19 +245,20 @@ export function AppointmentForm() {
 
     try {
       await createAppointment(payload);
-      const emailSent = await notifyAppointmentEmails(payload);
-      const toastOptions = buildChannelToastOptions(
-        values.contact_channel,
-        followUpWhatsAppUrl,
-        emailSent
+      const emailStatus = await notifyAppointmentEmails(payload);
+      toast.success(
+        "Cita registrada",
+        buildChannelToastOptions(values.contact_channel, followUpWhatsAppUrl, emailStatus)
       );
-      toast.success("Cita registrada", toastOptions);
+
       setSubmitSummary({
         channel: values.contact_channel,
         whatsappUrl: followUpWhatsAppUrl,
         emailProvided: Boolean(normalizedEmail),
       });
       reset(defaultValues);
+      setBookedSlots([]);
+      setAvailabilityError("");
     } catch (error) {
       toast.error("No pudimos guardar la cita", {
         description: getSupabaseErrorMessage(error),
@@ -263,13 +359,36 @@ export function AppointmentForm() {
             className="h-12 rounded-2xl border-[#E8D6DE] bg-[#FFFDFB]"
           />
         </Field>
-        <Field label="Hora preferida" error={errors.preferred_time?.message}>
-          <Input
+        <Field
+          label="Hora preferida"
+          error={errors.preferred_time?.message}
+          hint={
+            selectedDate
+              ? isLoadingAvailability
+                ? "Revisando horarios ocupados..."
+                : availabilityError || "Elige un horario disponible."
+              : "Primero selecciona la fecha."
+          }
+        >
+          <select
             {...register("preferred_time")}
-            type="time"
             aria-invalid={Boolean(errors.preferred_time)}
-            className="h-12 rounded-2xl border-[#E8D6DE] bg-[#FFFDFB]"
-          />
+            disabled={!selectedDate}
+            className="h-12 w-full rounded-2xl border border-[#E8D6DE] bg-[#FFFDFB] px-3 text-sm text-[#2F2433] disabled:cursor-not-allowed disabled:bg-[#F7F1FA]/65"
+          >
+            <option value="">
+              {selectedDate ? "Seleccionar horario" : "Selecciona fecha primero"}
+            </option>
+            {APPOINTMENT_TIME_SLOTS.map((slot) => {
+              const isBooked = bookedSet.has(slot);
+              return (
+                <option key={slot} value={slot} disabled={isBooked}>
+                  {formatTimeSlotLabel(slot)}
+                  {isBooked ? " - ocupado" : ""}
+                </option>
+              );
+            })}
+          </select>
         </Field>
         <Field label="Canal de contacto" error={errors.contact_channel?.message}>
           <select
@@ -316,9 +435,7 @@ export function AppointmentForm() {
         />
       </div>
 
-      {submitSummary ? (
-        <ConfirmationBox summary={submitSummary} />
-      ) : null}
+      {submitSummary ? <ConfirmationBox summary={submitSummary} /> : null}
     </form>
   );
 }
@@ -338,15 +455,26 @@ function ChannelSecondaryAction({
         type="button"
         variant="outline"
         disabled={!emailValue}
-        onClick={() => {
-          if (emailValue) {
-            window.location.href = `mailto:${emailValue}`;
-          }
-        }}
         className="h-12 rounded-full border-[#E8D6DE] bg-white text-[#5B3A63] hover:bg-[#FFF6F8]"
       >
         <MailCheck className="size-4" />
-        Revisar correo
+        Confirmacion por email
+      </Button>
+    );
+  }
+
+  if (channel === "telefono") {
+    return (
+      <Button
+        type="button"
+        asChild
+        variant="outline"
+        className="h-12 rounded-full border-[#E8D6DE] bg-white text-[#5B3A63] hover:bg-[#FFF6F8]"
+      >
+        <a href={whatsappUrl} target="_blank" rel="noreferrer">
+          <MessageCircle className="size-4" />
+          WhatsApp opcional
+        </a>
       </Button>
     );
   }
@@ -378,7 +506,10 @@ function ConfirmationBox({ summary }: { summary: SubmitSummary }) {
 
   return (
     <div className="mt-5 rounded-[1.5rem] border border-[#D9C6E8] bg-[#F7F1FA]/70 p-4 text-sm leading-6 text-[#5B3A63]">
-      {channelMessageMap[summary.channel]}
+      <div className="flex items-start gap-2">
+        <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-[#A7353F]" />
+        <p>{channelMessageMap[summary.channel]}</p>
+      </div>
       {summary.channel === "whatsapp" ? (
         <a
           href={summary.whatsappUrl}
@@ -401,28 +532,33 @@ function ConfirmationBox({ summary }: { summary: SubmitSummary }) {
 function buildChannelToastOptions(
   channel: ContactChannel,
   whatsappUrl: string,
-  emailSent: boolean
+  emailStatus: EmailNotificationResult
 ) {
+  const emailHint =
+    emailStatus === "sent"
+      ? ""
+      : " La cita se guardo, pero el correo automatico no pudo enviarse.";
+
   if (channel === "email") {
     return {
-      description: emailSent
-        ? "Te enviaremos confirmacion por correo."
-        : "La cita se guardo. El correo no pudo enviarse ahora.",
+      description:
+        "Te enviaremos confirmacion por correo." +
+        (emailStatus === "sent" ? "" : emailHint),
     };
   }
 
   if (channel === "telefono") {
     return {
-      description: emailSent
-        ? "Te contactaremos por llamada para confirmar."
-        : "La cita se guardo. Te confirmaremos por llamada.",
+      description:
+        "Te contactaremos por llamada para confirmar." +
+        (emailStatus === "sent" ? "" : emailHint),
     };
   }
 
   return {
-    description: emailSent
-      ? "Te contactaremos pronto por WhatsApp."
-      : "La cita se guardo. El correo automatico no pudo enviarse.",
+    description:
+      "Te contactaremos pronto por WhatsApp." +
+      (emailStatus === "sent" ? "" : emailHint),
     action: {
       label: "WhatsApp",
       onClick: () => window.open(whatsappUrl, "_blank", "noreferrer"),
@@ -440,15 +576,12 @@ async function notifyAppointmentEmails(payload: AppointmentInsert) {
       body: JSON.stringify(payload),
     });
 
-    if (!response.ok) {
-      console.warn("[Email] Appointment notification failed", response.status);
-      return false;
-    }
+    if (response.ok) return "sent" as const;
 
-    return true;
-  } catch (error) {
-    console.warn("[Email] Appointment notification failed", error);
-    return false;
+    if (response.status === 503) return "not_configured" as const;
+    return "failed" as const;
+  } catch {
+    return "failed" as const;
   }
 }
 
@@ -457,11 +590,13 @@ function Field({
   error,
   children,
   className,
+  hint,
 }: {
   label: string;
   error?: string;
   children: React.ReactNode;
   className?: string;
+  hint?: string;
 }) {
   return (
     <label className={className}>
@@ -469,6 +604,7 @@ function Field({
         {label}
       </span>
       {children}
+      {hint ? <span className="mt-2 block text-xs text-[#7B6A80]">{hint}</span> : null}
       {error ? (
         <span className="mt-2 block text-xs font-medium text-[#A7353F]">
           {error}

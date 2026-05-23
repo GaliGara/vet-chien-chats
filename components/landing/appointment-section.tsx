@@ -13,8 +13,8 @@ export function AppointmentSection() {
         <div className="lg:sticky lg:top-24">
           <SectionHeading
             eyebrow="Citas"
-            title="Reserva sin fricción, confirma con calma."
-            description="Agenda consulta, baño, corte, vacunación, desparasitación o seguimiento de adopción. Te respondemos con claridad y trato cercano."
+            title="Reserva sin friccion, confirma con calma."
+            description="Agenda consulta, bano, corte, vacunacion, desparasitacion o seguimiento de adopcion. Te respondemos con claridad y trato cercano."
           />
           <div className="mt-8 grid gap-3">
             {[
@@ -24,11 +24,11 @@ export function AppointmentSection() {
               },
               {
                 icon: MessageCircleHeart,
-                text: "WhatsApp queda listo con el resumen para continuar la conversación.",
+                text: "Puedes confirmar por WhatsApp, llamada o correo segun tu preferencia.",
               },
               {
                 icon: ShieldCheck,
-                text: "Tu solicitud entra como nueva para recibir confirmación humana.",
+                text: "Tu solicitud entra como nueva para recibir confirmacion humana.",
               },
             ].map((item) => {
               const Icon = item.icon;

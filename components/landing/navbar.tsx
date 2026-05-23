@@ -8,6 +8,7 @@ import {
   Sheet,
   SheetClose,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
@@ -73,6 +74,9 @@ export function Navbar() {
               <SheetTitle className="font-heading text-xl text-[#2F2433]">
                 {brand.name}
               </SheetTitle>
+              <SheetDescription className="sr-only">
+                Navegacion principal y acceso rapido a citas y admin.
+              </SheetDescription>
             </SheetHeader>
             <nav className="flex flex-col gap-2 px-4" aria-label="Menú móvil">
               {navItems.map((item) => (

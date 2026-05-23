@@ -8,9 +8,14 @@ El frontend usa solo:
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `NEXT_PUBLIC_WHATSAPP_NUMBER`, opcional
+- `NEXT_PUBLIC_SITE_URL`, opcional
 
 Importante: el formulario publico de citas hace un `insert` simple en
 `appointments`. No usa `.select()`, `.single()` ni intenta leer la fila creada.
+
+Para el endpoint publico de disponibilidad (`/api/appointments/availability`),
+el servidor usa `SUPABASE_SERVICE_ROLE_KEY` para leer solo `preferred_time` de
+citas `confirmada` por fecha, sin exponer datos sensibles.
 
 ## Admin allowlist
 
@@ -353,6 +358,8 @@ using (
 
 - `appointments`: el cliente anon solo debe insertar. No agregues policy publica
   de `select`.
+- `appointments`: disponibilidad publica de horarios se resuelve por endpoint
+  server-side; no se habilita lectura publica de filas.
 - `/admin/citas`: si RLS bloquea, revisa que el usuario este autenticado y que
   su correo exista en `public.app_admins`.
 - `services`: la landing consulta servicios con `active = true`.

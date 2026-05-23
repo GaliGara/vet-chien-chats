@@ -6,7 +6,7 @@ type SupabaseLikeError = {
 
 export function getSupabaseErrorMessage(error: unknown) {
   const fallback =
-    "No pudimos completar la acción. Revisa tu conexión o la configuración de Supabase.";
+    "No pudimos completar la accion. Revisa tu conexion o la configuracion de Supabase.";
 
   if (!error || typeof error !== "object") return fallback;
 
@@ -20,7 +20,7 @@ export function getSupabaseErrorMessage(error: unknown) {
     message.includes("permission denied") ||
     message.includes("unauthorized")
   ) {
-    return "Supabase bloqueó la operación por RLS o permisos. En Revisión local esto es esperado para datos privados; inicia sesión con un admin o revisa docs/supabase-policies.md.";
+    return "Supabase bloqueo la operacion por RLS o permisos. Inicia sesion con un admin autorizado o revisa docs/supabase-policies.md.";
   }
 
   if (code === "PGRST125" || message.includes("invalid path")) {

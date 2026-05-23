@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   CalendarDays,
+  ChevronDown,
+  ChevronUp,
   Edit3,
   Loader2,
   Mail,
@@ -12,8 +15,9 @@ import {
   PhoneCall,
   Plus,
   RefreshCw,
+  Trash2,
 } from "lucide-react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import {
@@ -22,6 +26,10 @@ import {
   appointmentStatusOptions,
   brand,
 } from "@/constants/site";
+import {
+  APPOINTMENT_TIME_SLOTS,
+  formatTimeSlotLabel,
+} from "@/lib/appointment-slots";
 import type {
   Appointment,
   AppointmentInsert,
@@ -30,16 +38,13 @@ import type {
 } from "@/types/database";
 import {
   createAppointment,
+  deleteAppointment,
   getAppointments,
+  getBookedTimeSlotsByDate,
   updateAppointment,
   updateAppointmentStatus,
 } from "@/lib/supabase-queries";
-import {
-  buildPhoneHref,
-  buildWhatsAppUrl,
-  formatDate,
-  formatDateTime,
-} from "@/lib/format";
+import { buildPhoneHref, buildWhatsAppUrl, formatDate, formatDateTime } from "@/lib/format";
 import { getSupabaseErrorMessage } from "@/lib/supabase-errors";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AdminNotice } from "@/components/admin/admin-notice";
@@ -49,6 +54,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -95,15 +101,26 @@ const emptyAppointmentValues: AppointmentAdminValues = {
   message: "",
 };
 
+type AppointmentTab = AppointmentStatus | "todas";
+
 export function AdminAppointments() {
+  const searchParams = useSearchParams();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [filter, setFilter] = useState<AppointmentStatus | "todas">("todas");
+  const [manualTab, setManualTab] = useState<AppointmentTab | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] =
     useState<Appointment | null>(null);
+  const [attendConfirmOpen, setAttendConfirmOpen] = useState(false);
+  const [attendAppointment, setAttendAppointment] = useState<Appointment | null>(
+    null
+  );
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deletingAppointment, setDeletingAppointment] = useState<Appointment | null>(
+    null
+  );
 
   async function loadAppointments() {
     setIsLoading(true);
@@ -122,29 +139,67 @@ export function AdminAppointments() {
   useEffect(() => {
     let isMounted = true;
 
-    getAppointments({ throwOnError: true })
-      .then((data) => {
-        if (isMounted) setAppointments(data);
-      })
-      .catch((error) => {
-        if (isMounted) {
-          setAppointments([]);
-          setErrorMessage(getSupabaseErrorMessage(error));
-        }
-      })
-      .finally(() => {
+    (async () => {
+      try {
+        const data = await getAppointments({ throwOnError: true });
+        if (!isMounted) return;
+        setAppointments(data);
+      } catch (error) {
+        if (!isMounted) return;
+        setAppointments([]);
+        setErrorMessage(getSupabaseErrorMessage(error));
+      } finally {
         if (isMounted) setIsLoading(false);
-      });
+      }
+    })();
 
     return () => {
       isMounted = false;
     };
   }, []);
 
+  const tabCounts = useMemo(() => {
+    const counts = {
+      nueva: 0,
+      confirmada: 0,
+      atendida: 0,
+      cancelada: 0,
+      todas: appointments.length,
+    };
+
+    for (const appointment of appointments) {
+      counts[appointment.status] += 1;
+    }
+
+    return counts;
+  }, [appointments]);
+
+  const statusFromQuery = useMemo(() => {
+    const status = searchParams.get("status");
+    if (
+      status === "nueva" ||
+      status === "confirmada" ||
+      status === "atendida" ||
+      status === "cancelada" ||
+      status === "todas"
+    ) {
+      return status;
+    }
+    return null;
+  }, [searchParams]);
+
+  const defaultTab = useMemo<AppointmentTab>(() => {
+    if (tabCounts.nueva > 0) return "nueva";
+    if (tabCounts.confirmada > 0) return "confirmada";
+    return "todas";
+  }, [tabCounts.confirmada, tabCounts.nueva]);
+
+  const activeTab: AppointmentTab = manualTab ?? statusFromQuery ?? defaultTab;
+
   const filteredAppointments = useMemo(() => {
-    if (filter === "todas") return appointments;
-    return appointments.filter((appointment) => appointment.status === filter);
-  }, [appointments, filter]);
+    if (activeTab === "todas") return appointments;
+    return appointments.filter((appointment) => appointment.status === activeTab);
+  }, [activeTab, appointments]);
 
   function openCreateDialog() {
     setEditingAppointment(null);
@@ -175,6 +230,64 @@ export function AdminAppointments() {
     }
   }
 
+  function openAttendConfirm(appointment: Appointment) {
+    setAttendAppointment(appointment);
+    setAttendConfirmOpen(true);
+  }
+
+  async function markAsAttended() {
+    if (!attendAppointment) return;
+    await handleStatusChange(attendAppointment.id, "atendida");
+    setAttendConfirmOpen(false);
+    setAttendAppointment(null);
+  }
+
+  async function deleteFromAttendDialog() {
+    if (!attendAppointment) return;
+    setUpdatingId(attendAppointment.id);
+    try {
+      await deleteAppointment(attendAppointment.id);
+      setAppointments((current) =>
+        current.filter((appointment) => appointment.id !== attendAppointment.id)
+      );
+      toast.success("Cita eliminada");
+      setAttendConfirmOpen(false);
+      setAttendAppointment(null);
+    } catch (error) {
+      toast.error("No se pudo eliminar", {
+        description: getSupabaseErrorMessage(error),
+      });
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
+  function openDeleteConfirm(appointment: Appointment) {
+    setDeletingAppointment(appointment);
+    setDeleteConfirmOpen(true);
+  }
+
+  async function handleDeleteAppointment() {
+    if (!deletingAppointment) return;
+
+    setUpdatingId(deletingAppointment.id);
+    try {
+      await deleteAppointment(deletingAppointment.id);
+      setAppointments((current) =>
+        current.filter((appointment) => appointment.id !== deletingAppointment.id)
+      );
+      toast.success("Cita eliminada");
+      setDeleteConfirmOpen(false);
+      setDeletingAppointment(null);
+    } catch (error) {
+      toast.error("No se pudo eliminar", {
+        description: getSupabaseErrorMessage(error),
+      });
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
   async function handleSaved(saved?: Appointment) {
     if (saved) {
       setAppointments((current) =>
@@ -191,25 +304,29 @@ export function AdminAppointments() {
   return (
     <AdminShell
       title="Citas"
-      description="Gestiona solicitudes como cards compactas desde celular y actualiza estado rapidamente."
+      description="Separa nuevas solicitudes de citas agendadas y gestiona cada estado con acciones claras."
     >
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex gap-2 overflow-x-auto pb-1">
-          {(["todas", ...appointmentStatusOptions] as const).map((status) => (
-            <button
-              key={status}
-              type="button"
-              aria-pressed={filter === status}
-              onClick={() => setFilter(status)}
-              className={`min-w-fit rounded-full border px-3 py-1.5 text-xs font-semibold transition sm:px-4 sm:py-2 sm:text-sm ${
-                filter === status
-                  ? "border-[#A7353F] bg-[#A7353F] text-[#FFFDFB]"
-                  : "border-[#E8D6DE] bg-white text-[#5B3A63] hover:bg-[#FFF6F8]"
-              }`}
-            >
-              {status === "todas" ? "Todas" : appointmentStatusLabels[status]}
-            </button>
-          ))}
+          {(["nueva", "confirmada", "atendida", "cancelada", "todas"] as const).map(
+            (status) => (
+              <button
+                key={status}
+                type="button"
+                aria-pressed={activeTab === status}
+                onClick={() => setManualTab(status)}
+                className={`min-w-fit rounded-full border px-3 py-1.5 text-xs font-semibold transition sm:px-4 sm:py-2 sm:text-sm ${
+                  activeTab === status
+                    ? "border-[#A7353F] bg-[#A7353F] text-[#FFFDFB]"
+                    : "border-[#E8D6DE] bg-white text-[#5B3A63] hover:bg-[#FFF6F8]"
+                }`}
+              >
+                {status === "todas"
+                  ? `Todas (${tabCounts.todas})`
+                  : `${appointmentStatusLabels[status]} (${tabCounts[status]})`}
+              </button>
+            )
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-2 sm:flex">
@@ -239,7 +356,7 @@ export function AdminAppointments() {
                   {editingAppointment ? "Editar cita" : "Nueva cita"}
                 </DialogTitle>
                 <DialogDescription className="text-sm text-[#7B6A80]">
-                  Registra una cita manual con lo esencial y completa el resto luego.
+                  Captura una cita manual y define su estado de seguimiento.
                 </DialogDescription>
               </DialogHeader>
               <div className="modal-scroll min-h-0 flex-1 overflow-y-auto px-5 pb-5">
@@ -259,15 +376,12 @@ export function AdminAppointments() {
           {[1, 2, 3].map((item) => (
             <div
               key={item}
-              className="h-40 animate-pulse rounded-[1.25rem] bg-[#FFF6F8]"
+              className="h-36 animate-pulse rounded-[1.25rem] bg-[#FFF6F8]"
             />
           ))}
         </div>
       ) : errorMessage ? (
-        <AdminNotice
-          title="No se pudieron cargar las citas"
-          text={errorMessage}
-        />
+        <AdminNotice title="No se pudieron cargar las citas" text={errorMessage} />
       ) : filteredAppointments.length > 0 ? (
         <div className="grid gap-3 lg:grid-cols-2">
           {filteredAppointments.map((appointment) => (
@@ -277,15 +391,81 @@ export function AdminAppointments() {
               updating={updatingId === appointment.id}
               onEdit={openEditDialog}
               onStatusChange={handleStatusChange}
+              onConfirmAttend={openAttendConfirm}
+              onDelete={openDeleteConfirm}
             />
           ))}
         </div>
       ) : (
         <AdminNotice
-          title="Sin citas por ahora"
-          text="Cuando llegue una solicitud o crees una cita manual, aparecera aqui."
+          title="Sin citas en este estado"
+          text={getAppointmentsEmptyState(activeTab)}
         />
       )}
+
+      <Dialog open={attendConfirmOpen} onOpenChange={setAttendConfirmOpen}>
+        <DialogContent className="max-w-md rounded-[1.6rem] border-[#E8D6DE] bg-[#FFFDFB]">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-3xl text-[#2F2433]">
+              Marcar cita como atendida
+            </DialogTitle>
+            <DialogDescription className="text-sm text-[#7B6A80]">
+              Esta cita se movera fuera de solicitudes activas. Puedes conservarla
+              como historial o eliminarla si ya no la necesitas.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <Button
+              type="button"
+              onClick={markAsAttended}
+              className="h-11 rounded-full bg-[#A7353F] text-[#FFFDFB] hover:bg-[#8E2D36]"
+            >
+              Conservar como atendida
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={deleteFromAttendDialog}
+              className="h-11 rounded-full border-[#E8D6DE] text-[#A7353F] hover:bg-[#FFF6F8]"
+            >
+              <Trash2 className="size-4" />
+              Eliminar cita
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent className="max-w-md rounded-[1.6rem] border-[#E8D6DE] bg-[#FFFDFB]">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-3xl text-[#2F2433]">
+              Eliminar cita
+            </DialogTitle>
+            <DialogDescription className="text-sm text-[#7B6A80]">
+              {deletingAppointment?.status === "atendida"
+                ? "Esta cita ya forma parte del historial. Si la eliminas, ya no aparecera en el panel."
+                : "Esta accion eliminara la cita de forma definitiva. Deseas continuar?"}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDeleteConfirmOpen(false)}
+              className="h-11 rounded-full border-[#E8D6DE] text-[#5B3A63] hover:bg-[#FFF6F8]"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={handleDeleteAppointment}
+              className="h-11 rounded-full bg-[#A7353F] text-[#FFFDFB] hover:bg-[#8E2D36]"
+            >
+              Eliminar cita
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminShell>
   );
 }
@@ -295,125 +475,203 @@ function AppointmentCard({
   updating,
   onEdit,
   onStatusChange,
+  onConfirmAttend,
+  onDelete,
 }: {
   appointment: Appointment;
   updating: boolean;
   onEdit: (appointment: Appointment) => void;
   onStatusChange: (id: string, status: AppointmentStatus) => void;
+  onConfirmAttend: (appointment: Appointment) => void;
+  onDelete: (appointment: Appointment) => void;
 }) {
-  const hasCallablePhone = Boolean(buildPhoneHref(appointment.phone));
-  const whatsappMessage = `Hola ${appointment.client_name}, te contactamos de ${brand.name} sobre tu cita para ${appointment.pet_name} el ${appointment.preferred_date} a las ${appointment.preferred_time}. Servicio: ${appointment.service}.`;
+  const [isActionsOpen, setIsActionsOpen] = useState(false);
   const phoneHref = buildPhoneHref(appointment.phone);
+  const canContactByPhone = Boolean(phoneHref);
+  const whatsappMessage = `Hola ${appointment.client_name}, te contactamos de ${brand.name} sobre tu cita para ${appointment.pet_name} el ${appointment.preferred_date} a las ${appointment.preferred_time}. Servicio: ${appointment.service}.`;
+  const isCanceled = appointment.status === "cancelada";
+  const isAttended = appointment.status === "atendida";
+  const isHistoryCard = isAttended || isCanceled;
+  const hasEmail = Boolean(appointment.email);
 
   return (
-    <article className="rounded-[1.3rem] border border-[#E8D6DE] bg-white p-4 shadow-[0_12px_30px_rgb(91_58_99/0.07)]">
+    <article
+      className={`rounded-[1.2rem] border border-[#E8D6DE] bg-white p-3.5 shadow-[0_12px_30px_rgb(91_58_99/0.07)] ${
+        isCanceled ? "opacity-75" : ""
+      }`}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="truncate font-heading text-2xl leading-tight text-[#2F2433]">
+          <h2 className="truncate text-base font-semibold leading-tight text-[#2F2433]">
             {appointment.client_name}
           </h2>
-          <p className="mt-0.5 text-sm text-[#7B6A80]">
-            {appointment.pet_name} · {appointment.pet_type}
+          <p className="mt-0.5 truncate text-xs text-[#7B6A80]">
+            {appointment.pet_name} - {appointment.pet_type}
           </p>
         </div>
         <AppointmentStatusBadge status={appointment.status} />
       </div>
 
-      <div className="mt-3 grid gap-2 text-sm text-[#7B6A80]">
-        {hasCallablePhone ? <InfoLine icon={Phone} text={appointment.phone} /> : null}
-        {appointment.email ? <InfoLine icon={Mail} text={appointment.email} /> : null}
-        <InfoLine
-          icon={CalendarDays}
-          text={`${formatDate(appointment.preferred_date)} · ${appointment.preferred_time}`}
-        />
-      </div>
-
-      <div className="mt-3 rounded-[1rem] bg-[#FFF6F8] p-3">
+      <div className="mt-2.5 rounded-[0.95rem] bg-[#FFF6F8] p-2.5">
         <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#A7353F]">
           Servicio
         </p>
-        <p className="mt-1 text-sm font-semibold text-[#2F2433]">
+        <p className="mt-1 text-sm font-semibold leading-tight text-[#2F2433]">
           {appointment.service}
         </p>
-        {appointment.message ? (
-          <p className="mt-2 text-sm leading-6 text-[#7B6A80]">
-            {appointment.message}
+      </div>
+
+      <div className="mt-2.5 grid grid-cols-2 gap-2 text-[11px] text-[#7B6A80]">
+        <div>
+          <InfoLine
+            icon={CalendarDays}
+            text={`${formatDate(appointment.preferred_date)} - ${appointment.preferred_time}`}
+          />
+        </div>
+        <div>
+          <p className="truncate text-right capitalize">{appointment.contact_channel}</p>
+        </div>
+      </div>
+      {(canContactByPhone || hasEmail) && (
+        <div className="mt-1.5 grid gap-1 text-[11px] text-[#7B6A80]">
+          {canContactByPhone ? <InfoLine icon={Phone} text={appointment.phone} /> : null}
+          {hasEmail ? <InfoLine icon={Mail} text={appointment.email as string} /> : null}
+        </div>
+      )}
+
+      <div className="mt-3 grid gap-2">
+        {appointment.status === "nueva" ? (
+          <Button
+            type="button"
+            disabled={updating}
+            onClick={() => onStatusChange(appointment.id, "confirmada")}
+            className="h-10 rounded-full bg-[#A7353F] text-[#FFFDFB] hover:bg-[#8E2D36]"
+          >
+            {updating ? <Loader2 className="size-4 animate-spin" /> : null}
+            Confirmar cita
+          </Button>
+        ) : appointment.status === "confirmada" ? (
+          <Button
+            type="button"
+            disabled={updating}
+            onClick={() => onConfirmAttend(appointment)}
+            className="h-10 rounded-full bg-[#5B3A63] text-[#FFFDFB] hover:bg-[#4D3154]"
+          >
+            {updating ? <Loader2 className="size-4 animate-spin" /> : null}
+            Marcar atendida
+          </Button>
+        ) : isAttended ? (
+          <p className="rounded-full border border-[#E8D6DE] bg-[#FFFDFB] px-3 py-2 text-center text-xs text-[#7B6A80]">
+            Guardada como historial de cita atendida
+          </p>
+        ) : isCanceled ? (
+          <p className="rounded-full border border-[#E8D6DE] bg-[#FFFDFB] px-3 py-2 text-center text-xs text-[#7B6A80]">
+            Cita cancelada
           </p>
         ) : null}
-      </div>
 
-      <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-[#7B6A80]">
-        <div>
-          <p className="font-semibold uppercase tracking-[0.12em] text-[#5B3A63]">
-            Canal
-          </p>
-          <p className="mt-1 capitalize">{appointment.contact_channel}</p>
-        </div>
-        <div>
-          <p className="font-semibold uppercase tracking-[0.12em] text-[#5B3A63]">
-            Registro
-          </p>
-          <p className="mt-1">{formatDateTime(appointment.created_at)}</p>
-        </div>
-      </div>
-
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        <select
-          aria-label={`Cambiar status de cita de ${appointment.client_name}`}
-          value={appointment.status}
-          disabled={updating}
-          onChange={(event) =>
-            onStatusChange(appointment.id, event.target.value as AppointmentStatus)
-          }
-          className="h-10 rounded-full border border-[#E8D6DE] bg-[#FFFDFB] px-3 text-sm font-semibold text-[#5B3A63] focus-visible:ring-3 focus-visible:ring-[#DFA2BA]/45"
-        >
-          {appointmentStatusOptions.map((status) => (
-            <option key={status} value={status}>
-              {appointmentStatusLabels[status]}
-            </option>
-          ))}
-        </select>
         <Button
           type="button"
           variant="outline"
-          onClick={() => onEdit(appointment)}
+          onClick={() => setIsActionsOpen((current) => !current)}
           className="h-10 rounded-full border-[#E8D6DE] bg-white text-[#5B3A63] hover:bg-[#FFF6F8]"
         >
-          <Edit3 className="size-4" />
-          Editar
+          Mas acciones
+          {isActionsOpen ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
         </Button>
-        {hasCallablePhone ? (
-          <Button
-            asChild
-            variant="outline"
-            className="h-10 rounded-full border-[#E8D6DE] bg-white text-[#5B3A63] hover:bg-[#FFF6F8]"
-          >
-            <a
-              href={buildWhatsAppUrl(appointment.phone, whatsappMessage)}
-              target="_blank"
-              rel="noreferrer"
-            >
-              <MessageCircle className="size-4" />
-              WhatsApp
-            </a>
-          </Button>
-        ) : (
-          <span />
-        )}
-        {phoneHref ? (
-          <Button
-            asChild
-            variant="outline"
-            className="h-10 rounded-full border-[#E8D6DE] bg-white text-[#5B3A63] hover:bg-[#FFF6F8]"
-          >
-            <a href={phoneHref}>
-              <PhoneCall className="size-4" />
-              Llamar
-            </a>
-          </Button>
-        ) : (
-          <span />
-        )}
+
+        {isActionsOpen ? (
+          <div className="rounded-[1rem] border border-[#E8D6DE] bg-[#FFFDFB] p-2.5">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#7B6A80]">
+              Registro: {formatDateTime(appointment.created_at)}
+            </p>
+            {!isHistoryCard ? (
+              <select
+                aria-label={`Cambiar status de cita de ${appointment.client_name}`}
+                value={appointment.status}
+                disabled={updating}
+                onChange={(event) =>
+                  onStatusChange(appointment.id, event.target.value as AppointmentStatus)
+                }
+                className="mb-2 h-10 w-full rounded-full border border-[#E8D6DE] bg-white px-3 text-sm font-semibold text-[#5B3A63] focus-visible:ring-3 focus-visible:ring-[#DFA2BA]/45"
+              >
+                {appointmentStatusOptions.map((status) => (
+                  <option key={status} value={status}>
+                    {appointmentStatusLabels[status]}
+                  </option>
+                ))}
+              </select>
+            ) : null}
+            {isHistoryCard ? (
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => onEdit(appointment)}
+                  className="h-10 w-full rounded-full border-[#E8D6DE] bg-white text-[#5B3A63] hover:bg-[#FFF6F8]"
+                >
+                  <Edit3 className="size-4" />
+                  Editar
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => onDelete(appointment)}
+                  className="h-10 w-full rounded-full border-[#E8D6DE] bg-white text-[#A7353F] hover:bg-[#FFF6F8]"
+                >
+                  <Trash2 className="size-4" />
+                  Eliminar
+                </Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => onEdit(appointment)}
+                  className="h-10 rounded-full border-[#E8D6DE] bg-white text-[#5B3A63] hover:bg-[#FFF6F8]"
+                >
+                  <Edit3 className="size-4" />
+                  Editar
+                </Button>
+                <Button
+                  asChild
+                  variant="outline"
+                  className="h-10 rounded-full border-[#E8D6DE] bg-white text-[#5B3A63] hover:bg-[#FFF6F8]"
+                >
+                  <a
+                    href={buildWhatsAppUrl(appointment.phone, whatsappMessage)}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <MessageCircle className="size-4" />
+                    WhatsApp
+                  </a>
+                </Button>
+                <Button
+                  asChild
+                  variant="outline"
+                  disabled={!canContactByPhone}
+                  className="h-10 rounded-full border-[#E8D6DE] bg-white text-[#5B3A63] hover:bg-[#FFF6F8] disabled:opacity-45"
+                >
+                  <a href={phoneHref || "#"}>
+                    <PhoneCall className="size-4" />
+                    Llamar
+                  </a>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => onDelete(appointment)}
+                  className="h-10 rounded-full border-[#E8D6DE] bg-white text-[#A7353F] hover:bg-[#FFF6F8]"
+                >
+                  <Trash2 className="size-4" />
+                  Eliminar
+                </Button>
+              </div>
+            )}
+          </div>
+        ) : null}
       </div>
     </article>
   );
@@ -427,9 +685,14 @@ function AppointmentAdminForm({
   onSaved: (saved?: Appointment) => void | Promise<void>;
 }) {
   const [isSaving, setIsSaving] = useState(false);
+  const [bookedSlots, setBookedSlots] = useState<string[]>([]);
+  const [isLoadingAvailability, setIsLoadingAvailability] = useState(false);
+  const [availabilityError, setAvailabilityError] = useState("");
   const {
     register,
     handleSubmit,
+    control,
+    setValue,
     formState: { errors },
   } = useForm<AppointmentAdminValues>({
     resolver: zodResolver(appointmentAdminSchema),
@@ -452,6 +715,52 @@ function AppointmentAdminForm({
         }
       : emptyAppointmentValues,
   });
+
+  const selectedDate = useWatch({ control, name: "preferred_date" });
+  const selectedTime = useWatch({ control, name: "preferred_time" });
+  const bookedSet = useMemo(() => new Set(bookedSlots), [bookedSlots]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadBookedSlots() {
+      if (!selectedDate) {
+        setBookedSlots([]);
+        setAvailabilityError("");
+        return;
+      }
+
+      setIsLoadingAvailability(true);
+      setAvailabilityError("");
+
+      try {
+        const slots = await getBookedTimeSlotsByDate(selectedDate, {
+          throwOnError: true,
+          excludeAppointmentId: appointment?.id,
+        });
+        if (!isMounted) return;
+        setBookedSlots(slots);
+      } catch (error) {
+        if (!isMounted) return;
+        setBookedSlots([]);
+        setAvailabilityError(getSupabaseErrorMessage(error));
+      } finally {
+        if (isMounted) setIsLoadingAvailability(false);
+      }
+    }
+
+    loadBookedSlots();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedDate, appointment?.id]);
+
+  useEffect(() => {
+    if (selectedTime && bookedSet.has(selectedTime)) {
+      setValue("preferred_time", "", { shouldValidate: true });
+    }
+  }, [bookedSet, selectedTime, setValue]);
 
   async function onSubmit(values: AppointmentAdminValues) {
     const normalizedPhone = values.phone?.trim() || "";
@@ -483,6 +792,7 @@ function AppointmentAdminForm({
         toast.success("Cita creada");
         await onSaved();
       }
+
       const advisory = getAdminContactAdvisory(
         values.contact_channel,
         normalizedPhone,
@@ -499,6 +809,8 @@ function AppointmentAdminForm({
       setIsSaving(false);
     }
   }
+
+  const today = new Date().toISOString().slice(0, 10);
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4 pb-2">
@@ -555,17 +867,42 @@ function AppointmentAdminForm({
           <Input
             {...register("preferred_date")}
             type="date"
+            min={today}
             className="h-12 rounded-2xl border-[#E8D6DE] bg-white"
           />
         </FormField>
-        <FormField label="Hora preferida (opcional)" error={errors.preferred_time?.message}>
-          <Input
+        <FormField
+          label="Hora preferida (opcional)"
+          error={errors.preferred_time?.message}
+          hint={
+            selectedDate
+              ? isLoadingAvailability
+                ? "Revisando horarios ocupados..."
+                : availabilityError || "Puedes dejarla en blanco para confirmar luego."
+              : "Selecciona primero una fecha."
+          }
+        >
+          <select
             {...register("preferred_time")}
-            type="time"
-            className="h-12 rounded-2xl border-[#E8D6DE] bg-white"
-          />
+            disabled={!selectedDate}
+            className="h-12 w-full rounded-2xl border border-[#E8D6DE] bg-white px-3 text-sm text-[#2F2433] disabled:cursor-not-allowed disabled:bg-[#F7F1FA]/65"
+          >
+            <option value="">Por confirmar</option>
+            {APPOINTMENT_TIME_SLOTS.map((slot) => {
+              const isBooked = bookedSet.has(slot);
+              return (
+                <option key={slot} value={slot} disabled={isBooked}>
+                  {formatTimeSlotLabel(slot)}
+                  {isBooked ? " - ocupado" : ""}
+                </option>
+              );
+            })}
+          </select>
         </FormField>
-        <FormField label="Canal de contacto" error={errors.contact_channel?.message}>
+        <FormField
+          label="Canal de contacto"
+          error={errors.contact_channel?.message}
+        >
           <select
             {...register("contact_channel")}
             className="h-12 w-full rounded-2xl border border-[#E8D6DE] bg-white px-3 text-sm text-[#2F2433]"
@@ -615,10 +952,12 @@ function FormField({
   label,
   error,
   children,
+  hint,
 }: {
   label: string;
   error?: string;
   children: React.ReactNode;
+  hint?: string;
 }) {
   return (
     <label>
@@ -626,6 +965,7 @@ function FormField({
         {label}
       </span>
       {children}
+      {hint ? <span className="mt-2 block text-xs text-[#7B6A80]">{hint}</span> : null}
       {error ? (
         <span className="mt-2 block text-xs font-medium text-[#A7353F]">
           {error}
@@ -665,4 +1005,12 @@ function getAdminContactAdvisory(
     return "Tip: agrega correo para confirmar por email.";
   }
   return "";
+}
+
+function getAppointmentsEmptyState(tab: AppointmentTab) {
+  if (tab === "nueva") return "No hay citas nuevas por confirmar.";
+  if (tab === "confirmada") return "No hay citas confirmadas.";
+  if (tab === "atendida") return "No hay citas atendidas.";
+  if (tab === "cancelada") return "No hay citas canceladas.";
+  return "No hay citas registradas.";
 }

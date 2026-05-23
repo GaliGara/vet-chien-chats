@@ -27,7 +27,7 @@ export async function POST(request: Request) {
 
   if (!apiKey || !adminEmail) {
     return Response.json(
-      { ok: false, error: "Email service is not configured." },
+      { ok: false, error: "email_service_not_configured" },
       { status: 503 }
     );
   }
@@ -39,13 +39,14 @@ export async function POST(request: Request) {
     appointment = emailAppointmentSchema.parse(body);
   } catch {
     return Response.json(
-      { ok: false, error: "Invalid appointment payload." },
+      { ok: false, error: "invalid_appointment_payload" },
       { status: 400 }
     );
   }
 
   const resend = new Resend(apiKey);
-  const from = process.env.RESEND_FROM_EMAIL ?? `${brandName} <onboarding@resend.dev>`;
+  const from =
+    process.env.RESEND_FROM_EMAIL ?? `${brandName} <onboarding@resend.dev>`;
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
   const adminUrl = siteUrl ? `${siteUrl}/admin/citas` : null;
 
@@ -76,20 +77,17 @@ export async function POST(request: Request) {
 
     const results = await Promise.all(messages);
     const failed = results.find((result) => result.error);
-
     if (failed?.error) {
-      console.error("[Resend] Appointment email failed", failed.error);
       return Response.json(
-        { ok: false, error: "Email provider rejected the message." },
+        { ok: false, error: "email_provider_rejected" },
         { status: 502 }
       );
     }
 
     return Response.json({ ok: true });
-  } catch (error) {
-    console.error("[Resend] Appointment email error", error);
+  } catch {
     return Response.json(
-      { ok: false, error: "Unable to send appointment email." },
+      { ok: false, error: "email_send_failed" },
       { status: 502 }
     );
   }
@@ -196,7 +194,7 @@ function detailsText(appointment: EmailAppointment) {
 function channelLabel(channel: EmailAppointment["contact_channel"]) {
   const labels = {
     whatsapp: "WhatsApp",
-    telefono: "telefono",
+    telefono: "llamada",
     email: "correo",
   };
 

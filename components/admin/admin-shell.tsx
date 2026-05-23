@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import type { Session } from "@supabase/supabase-js";
 import {
   BriefcaseBusiness,
   CalendarDays,
@@ -35,42 +34,85 @@ type AdminShellProps = {
 export function AdminShell({ title, description, children }: AdminShellProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const [session, setSession] = useState<Session | null>(null);
-  const [isPreview, setIsPreview] = useState(
-    () =>
-      typeof window !== "undefined" &&
-      window.localStorage.getItem("admin-preview") === "true"
-  );
+  const [hasAccess, setHasAccess] = useState(false);
+  const [accessError, setAccessError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
+    let isMounted = true;
+
+    async function verifyAccess(nextSession?: Awaited<ReturnType<typeof supabase.auth.getSession>>["data"]["session"]) {
+      const currentSession =
+        nextSession ?? (await supabase.auth.getSession()).data.session;
+
+      if (!isMounted) return;
+
+      if (!currentSession) {
+        setHasAccess(false);
+        setAccessError("Inicia sesion para entrar al panel privado.");
+        setIsLoading(false);
+        router.replace(`/admin/login?next=${encodeURIComponent(pathname)}`);
+        return;
+      }
+
+      const { data, error } = await supabase.rpc("is_app_admin");
+      if (!isMounted) return;
+
+      if (error) {
+        setHasAccess(false);
+        setAccessError(
+          "No fue posible validar permisos de admin. Revisa app_admins y policies."
+        );
+        setIsLoading(false);
+        return;
+      }
+
+      if (!data) {
+        await supabase.auth.signOut();
+        if (!isMounted) return;
+        setHasAccess(false);
+        setAccessError(
+          "Tu cuenta no esta autorizada para el panel admin de Chiens et Chats."
+        );
+        setIsLoading(false);
+        router.replace("/admin/login?reason=forbidden");
+        return;
+      }
+
+      setHasAccess(true);
+      setAccessError("");
       setIsLoading(false);
+    }
+
+    verifyAccess().catch(() => {
+      if (!isMounted) return;
+      setHasAccess(false);
+      setAccessError("No se pudo validar la sesion. Intenta de nuevo.");
+      setIsLoading(false);
+      router.replace(`/admin/login?next=${encodeURIComponent(pathname)}`);
     });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
+      verifyAccess(nextSession).catch(() => {
+        if (!isMounted) return;
+        setHasAccess(false);
+        setAccessError("No se pudo actualizar el estado de sesion.");
+      });
     });
 
-    return () => subscription.unsubscribe();
-  }, []);
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, [pathname, router]);
 
   async function handleSignOut() {
-    window.localStorage.removeItem("admin-preview");
-    setIsPreview(false);
     await supabase.auth.signOut();
+    setHasAccess(false);
     router.push("/admin/login");
   }
-
-  function continuePreview() {
-    window.localStorage.setItem("admin-preview", "true");
-    setIsPreview(true);
-  }
-
-  const hasAccess = Boolean(session || isPreview);
 
   return (
     <div className="min-h-screen bg-[#FFFDFB]">
@@ -85,11 +127,6 @@ export function AdminShell({ title, description, children }: AdminShellProps) {
             </span>
           </Link>
           <div className="flex items-center gap-2">
-            {isPreview ? (
-              <span className="rounded-full border border-[#D9C6E8] bg-[#F7F1FA] px-3 py-1 text-xs font-semibold text-[#5B3A63]">
-                Revisión local
-              </span>
-            ) : null}
             {hasAccess ? (
               <Button
                 onClick={handleSignOut}
@@ -141,13 +178,6 @@ export function AdminShell({ title, description, children }: AdminShellProps) {
                 {description}
               </p>
             </div>
-            {isPreview ? (
-              <div className="mb-5 rounded-[1.5rem] border border-[#D9C6E8] bg-[#F7F1FA]/75 p-4 text-sm leading-6 text-[#5B3A63]">
-                Estás en <strong>Revisión local</strong>. Esta vista sirve para
-                validar la interfaz; las citas reales y datos privados requieren
-                iniciar sesión con Supabase Auth y policies de admin.
-              </div>
-            ) : null}
             {children}
           </>
         ) : (
@@ -159,23 +189,15 @@ export function AdminShell({ title, description, children }: AdminShellProps) {
               Acceso admin
             </h1>
             <p className="mt-3 text-sm leading-7 text-[#7B6A80]">
-              Inicia sesión con Supabase Auth. Si aún no configuraste usuarios,
-              puedes abrir una revisión local para validar la interfaz.
+              {accessError ||
+                "Inicia sesion con una cuenta autorizada en app_admins para continuar."}
             </p>
-            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+            <div className="mt-6">
               <Button
                 asChild
                 className="h-12 rounded-full bg-[#A7353F] text-[#FFFDFB] hover:bg-[#8E2D36]"
               >
-                <Link href="/admin/login">Iniciar sesión</Link>
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={continuePreview}
-                className="h-12 rounded-full border-[#E8D6DE] text-[#5B3A63] hover:bg-[#FFF6F8]"
-              >
-                Revisión local
+                <Link href="/admin/login">Iniciar sesion</Link>
               </Button>
             </div>
           </div>
@@ -185,7 +207,7 @@ export function AdminShell({ title, description, children }: AdminShellProps) {
       {hasAccess ? (
         <nav
           className="fixed inset-x-0 bottom-0 z-40 border-t border-[#E8D6DE] bg-[#FFFDFB]/92 px-2.5 pb-[max(0.55rem,env(safe-area-inset-bottom))] pt-1.5 shadow-[0_-10px_24px_rgb(91_58_99/0.09)] backdrop-blur-xl sm:hidden"
-          aria-label="Admin móvil"
+          aria-label="Admin movil"
         >
           <AdminNav pathname={pathname} compact />
         </nav>

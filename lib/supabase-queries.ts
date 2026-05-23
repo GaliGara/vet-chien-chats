@@ -1,4 +1,5 @@
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { normalizeTimeSlot } from "@/lib/appointment-slots";
 import type {
   AdminStats,
   Appointment,
@@ -19,7 +20,11 @@ function reportSupabaseError(context: string, error: unknown) {
   console.warn(`[Supabase] ${context}`, error);
 }
 
-function handleQueryError(context: string, error: unknown, options?: QueryOptions) {
+function handleQueryError(
+  context: string,
+  error: unknown,
+  options?: QueryOptions
+) {
   reportSupabaseError(context, error);
 
   if (options?.throwOnError) {
@@ -27,13 +32,18 @@ function handleQueryError(context: string, error: unknown, options?: QueryOption
   }
 }
 
+function getLocalDateISO() {
+  const now = new Date();
+  const shifted = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+  return shifted.toISOString().slice(0, 10);
+}
+
 export async function createAppointment(input: AppointmentInsert) {
   if (!isSupabaseConfigured) {
-    throw new Error("Supabase no está configurado.");
+    throw new Error("Supabase no esta configurado.");
   }
 
   const { error } = await supabase.from("appointments").insert(input);
-
   if (error) throw error;
 }
 
@@ -43,6 +53,8 @@ export async function getAppointments(options?: QueryOptions) {
   const { data, error } = await supabase
     .from("appointments")
     .select("*")
+    .order("preferred_date", { ascending: true })
+    .order("preferred_time", { ascending: true })
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -51,6 +63,38 @@ export async function getAppointments(options?: QueryOptions) {
   }
 
   return (data ?? []) as Appointment[];
+}
+
+export async function getBookedTimeSlotsByDate(
+  date: string,
+  options?: QueryOptions & { excludeAppointmentId?: string }
+) {
+  if (!isSupabaseConfigured || !date) return [];
+
+  let query = supabase
+    .from("appointments")
+    .select("id,preferred_time")
+    .eq("preferred_date", date)
+    .eq("status", "confirmada");
+
+  if (options?.excludeAppointmentId) {
+    query = query.neq("id", options.excludeAppointmentId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    handleQueryError("No se pudieron leer horarios ocupados.", error, options);
+    return [];
+  }
+
+  const booked = new Set<string>();
+  for (const row of data ?? []) {
+    const normalized = normalizeTimeSlot(row.preferred_time);
+    if (normalized) booked.add(normalized);
+  }
+
+  return [...booked];
 }
 
 export async function updateAppointmentStatus(
@@ -65,7 +109,7 @@ export async function updateAppointment(
   input: Partial<AppointmentInsert>
 ) {
   if (!isSupabaseConfigured) {
-    throw new Error("Supabase no está configurado.");
+    throw new Error("Supabase no esta configurado.");
   }
 
   const { data, error } = await supabase
@@ -79,7 +123,19 @@ export async function updateAppointment(
   return data as Appointment;
 }
 
-export async function getPetsForAdoption(status?: string, options?: QueryOptions) {
+export async function deleteAppointment(id: string) {
+  if (!isSupabaseConfigured) {
+    throw new Error("Supabase no esta configurado.");
+  }
+
+  const { error } = await supabase.from("appointments").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function getPetsForAdoption(
+  status?: string,
+  options?: QueryOptions
+) {
   if (!isSupabaseConfigured) return [];
 
   let query = supabase
@@ -103,7 +159,7 @@ export async function getPetsForAdoption(status?: string, options?: QueryOptions
 
 export async function createPetForAdoption(input: PetForAdoptionInput) {
   if (!isSupabaseConfigured) {
-    throw new Error("Supabase no está configurado.");
+    throw new Error("Supabase no esta configurado.");
   }
 
   const { data, error } = await supabase
@@ -121,7 +177,7 @@ export async function updatePetForAdoption(
   input: Partial<PetForAdoptionInput>
 ) {
   if (!isSupabaseConfigured) {
-    throw new Error("Supabase no está configurado.");
+    throw new Error("Supabase no esta configurado.");
   }
 
   const { data, error } = await supabase
@@ -168,7 +224,7 @@ export async function getActiveServices(options?: QueryOptions) {
 
 export async function createService(input: ServiceInput) {
   if (!isSupabaseConfigured) {
-    throw new Error("Supabase no está configurado.");
+    throw new Error("Supabase no esta configurado.");
   }
 
   const { data, error } = await supabase
@@ -188,7 +244,6 @@ export async function createService(input: ServiceInput) {
       if (retryError) throw retryError;
       return retryData as Service;
     }
-
     throw error;
   }
 
@@ -197,7 +252,7 @@ export async function createService(input: ServiceInput) {
 
 export async function updateService(id: string, input: Partial<ServiceInput>) {
   if (!isSupabaseConfigured) {
-    throw new Error("Supabase no está configurado.");
+    throw new Error("Supabase no esta configurado.");
   }
 
   const { data, error } = await supabase
@@ -219,7 +274,6 @@ export async function updateService(id: string, input: Partial<ServiceInput>) {
       if (retryError) throw retryError;
       return retryData as Service;
     }
-
     throw error;
   }
 
@@ -245,51 +299,57 @@ function withoutDurationMinutes<T extends Partial<ServiceInput>>(input: T) {
 export async function getAdminStats(): Promise<AdminStats> {
   if (!isSupabaseConfigured) {
     return {
-      totalAppointments: 0,
       newAppointments: 0,
+      confirmedToday: 0,
+      upcomingAppointments: 0,
       availableAdoptions: 0,
-      activeServices: 0,
     };
   }
 
-  const [
-    appointments,
-    newAppointments,
-    availableAdoptions,
-    activeServices,
-  ] = await Promise.all([
-    supabase.from("appointments").select("id", { count: "exact", head: true }),
-    supabase
-      .from("appointments")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "nueva"),
-    supabase
-      .from("pets_for_adoption")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "disponible"),
-    supabase
-      .from("services")
-      .select("id", { count: "exact", head: true })
-      .eq("active", true),
-  ]);
+  const today = getLocalDateISO();
+
+  const [newAppointments, confirmedToday, upcomingAppointments, availableAdoptions] =
+    await Promise.all([
+      supabase
+        .from("appointments")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "nueva"),
+      supabase
+        .from("appointments")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "confirmada")
+        .eq("preferred_date", today),
+      supabase
+        .from("appointments")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "confirmada")
+        .gte("preferred_date", today),
+      supabase
+        .from("pets_for_adoption")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "disponible"),
+    ]);
 
   const results = [
-    appointments,
     newAppointments,
+    confirmedToday,
+    upcomingAppointments,
     availableAdoptions,
-    activeServices,
   ];
 
   results.forEach((result, index) => {
     if (result.error) {
-      reportSupabaseError(`No se pudo calcular estadística ${index + 1}.`, result.error);
+      reportSupabaseError(
+        `No se pudo calcular estadistica ${index + 1}.`,
+        result.error
+      );
     }
   });
 
   return {
-    totalAppointments: appointments.count ?? 0,
     newAppointments: newAppointments.count ?? 0,
+    confirmedToday: confirmedToday.count ?? 0,
+    upcomingAppointments: upcomingAppointments.count ?? 0,
     availableAdoptions: availableAdoptions.count ?? 0,
-    activeServices: activeServices.count ?? 0,
   };
 }

@@ -130,6 +130,9 @@
     @apply bg-background text-foreground;
     text-rendering: optimizeLegibility;
   }
+  body[data-scroll-behavior="smooth"] {
+    scroll-behavior: smooth;
+  }
   html {
     @apply font-sans;
   }

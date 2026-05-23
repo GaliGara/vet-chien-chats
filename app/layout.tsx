@@ -32,7 +32,7 @@ export default function RootLayout({
       className={`${inter.variable} ${playfair.variable} h-full antialiased`}
     >
       <body
-        className="min-h-full scroll-smooth bg-background text-foreground"
+        className="min-h-full bg-background text-foreground"
         data-scroll-behavior="smooth"
       >
         {children}

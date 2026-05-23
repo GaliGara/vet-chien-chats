@@ -1,17 +1,11 @@
 # Chiens et Chats
 
-Web app / landing mobile-first para una veterinaria boutique enfocada en citas,
-servicios veterinarios, estética canina y procesos de adopción. La experiencia
-visual busca sentirse premium, cálida, femenina, humana y profesional.
+Web app y landing mobile-first para una veterinaria boutique enfocada en:
 
-Servicios base incluidos:
-
-- Consulta médica veterinaria
-- Baño, corte de pelo y baño + corte
-- Vacunación
-- Desparasitación
-- Seguimiento médico
-- Acompañamiento en procesos de adopción
+- citas veterinarias
+- estetica canina
+- adopciones responsables
+- panel admin privado para gestion diaria
 
 ## Stack
 
@@ -20,19 +14,18 @@ Servicios base incluidos:
 - Tailwind CSS
 - shadcn/ui
 - Framer Motion
-- Supabase
-- react-hook-form
-- zod
+- Supabase (DB + Auth + Storage)
+- react-hook-form + zod
 - sonner
 - lucide-react
+- Resend
 
 ## Requisitos
 
 - Node.js compatible con Next.js 16
 - npm
-- Proyecto de Supabase con anon key pública
-- Cuenta de Resend para correos transaccionales, si quieres notificaciones por email
-- Acceso a internet durante `next build` si usas `next/font/google`
+- Proyecto de Supabase
+- Cuenta de Resend (si quieres correos)
 
 ## Instalacion
 
@@ -42,22 +35,32 @@ npm install
 
 ## Variables de entorno
 
-Crea `.env.local`:
+Crea `/.env.local`:
 
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=https://tu-proyecto.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=tu-anon-key-publica
 NEXT_PUBLIC_WHATSAPP_NUMBER=525500000000
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
+
+# Solo server-side (NO frontend)
+SUPABASE_SERVICE_ROLE_KEY=tu-service-role-key
 RESEND_API_KEY=tu-api-key-de-resend
 ADMIN_EMAIL=admin@tudominio.com
+ADMIN_LOGIN_USERNAME=lizeth
+ADMIN_LOGIN_EMAIL=correo-real-de-lizeth@gmail.com
 RESEND_FROM_EMAIL="Chiens et Chats <citas@tudominio.com>"
 ```
 
-`NEXT_PUBLIC_WHATSAPP_NUMBER` es opcional. Úsalo sin espacios, signos ni guiones.
-`RESEND_FROM_EMAIL` es opcional; si no existe se usa `onboarding@resend.dev`.
-Nunca pongas `service_role`, secret keys ni credenciales privadas en frontend.
-`RESEND_API_KEY` no debe llevar prefijo `NEXT_PUBLIC`.
+Notas:
+
+- `NEXT_PUBLIC_WHATSAPP_NUMBER` es opcional.
+- `RESEND_FROM_EMAIL` es opcional (si falta, usa `onboarding@resend.dev`).
+- Nunca uses secret keys en frontend.
+- `SUPABASE_SERVICE_ROLE_KEY` se usa solo en `/api/appointments/availability`.
+- `ADMIN_LOGIN_EMAIL` y `ADMIN_LOGIN_USERNAME` son solo server-side.
+- En `/admin/login`, Lizeth escribe `ADMIN_LOGIN_USERNAME` + password.
+- El login server-side mapea ese usuario a `ADMIN_LOGIN_EMAIL`.
 
 ## Desarrollo local
 
@@ -67,7 +70,7 @@ npm run dev
 
 Abre [http://localhost:3000](http://localhost:3000).
 
-## Verificación
+## Verificacion
 
 ```bash
 npm run lint
@@ -81,20 +84,48 @@ npm.cmd run lint
 npm.cmd run build
 ```
 
-`next/font/google` descarga Inter y Playfair Display durante build. Si el build
-falla solo por red al descargar fuentes, repítelo con conexión o cambia a fuentes
-locales antes de producción.
+Si el build falla solo por descarga de Google Fonts, repite con conexion o migra
+fuentes a local antes de produccion.
 
 ## Rutas
 
-- `/` landing completa
-- `/citas` formulario de reservación
-- `/adopciones` adopciones conectadas a Supabase
-- `/admin` dashboard mobile-first
-- `/admin/login` login con Supabase Auth
-- `/admin/citas` gestión de citas
-- `/admin/adopciones` gestión de adopciones
-- `/admin/servicios` vista de servicios
+- `/` landing
+- `/citas` reservacion publica
+- `/adopciones` adopciones publicas
+- `/admin` resumen
+- `/admin/login` login privado
+- `/admin/citas` gestion de citas
+- `/admin/adopciones` gestion de adopciones
+- `/admin/servicios` gestion de servicios
+
+## Flujo de citas
+
+### Publico
+
+1. El usuario envia solicitud.
+2. Se guarda en `appointments` con `status = nueva`.
+3. Se intenta enviar correo al admin y al cliente (si hay email).
+4. Si correo falla, la cita no se pierde.
+5. Si canal es WhatsApp, se ofrece CTA para continuar en WhatsApp.
+
+### Admin
+
+- Nuevas: CTA principal `Confirmar cita`.
+- Confirmadas: CTA principal `Marcar atendida`.
+- Al marcar atendida: modal con opciones:
+  - conservar como atendida
+  - eliminar cita
+  - cancelar
+
+## Disponibilidad de horarios
+
+- Horario laboral: `09:00` a `18:00`.
+- Intervalo: cada 30 minutos.
+- Se bloquean horarios ocupados por citas `confirmada` del mismo dia.
+- Endpoint publico minimo:
+  - `GET /api/appointments/availability?date=YYYY-MM-DD`
+  - Respuesta: `{ date, booked_times }`
+  - No expone datos privados de citas.
 
 ## Supabase
 
@@ -103,79 +134,61 @@ Tablas esperadas:
 - `appointments`
 - `pets_for_adoption`
 - `services`
-
-Nota para proyectos existentes: si `services` no tiene `duration_minutes`,
-agrega la columna manualmente con el SQL documentado en `docs/supabase-policies.md`.
+- `app_admins` (allowlist admin)
 
 Storage esperado:
 
-- Bucket público `adoption-pets`
+- Bucket publico `adoption-pets`
 
-El SQL sugerido para schema y RLS está en:
+SQL recomendado de schema y RLS:
 
 - `docs/supabase-policies.md`
 
-El formulario público inserta en `appointments` con status `nueva`.
-La landing lee mascotas `disponible` y servicios con `active = true`.
-El panel admin usa Supabase Auth para leer/editar datos.
+## Admin y seguridad
 
-En `/admin/adopciones`, las fotos se suben desde el navegador al bucket
-`adoption-pets` usando la anon key y la sesión admin. La URL pública queda
-guardada en `pets_for_adoption.image_url`.
+- El admin ya no tiene modo de revision local.
+- Solo entra con Supabase Auth.
+- Ademas valida allowlist por `public.is_app_admin()` y `app_admins`.
+- Si no hay sesion o no esta autorizado, redirige a `/admin/login`.
+- El correo real usado en login (`ADMIN_LOGIN_EMAIL`) debe existir en Supabase Auth.
+- Ese mismo correo debe estar permitido en `app_admins` (y con `active = true` si tu tabla incluye esa columna).
 
 ## Correos con Resend
 
-Cuando una cita pública se guarda correctamente:
+Endpoint:
 
-1. La cita permanece guardada en Supabase.
-2. El frontend llama a `/api/appointments/email`.
-3. El servidor envía un correo a `ADMIN_EMAIL`.
-4. Si el cliente escribió email, también recibe confirmación.
+- `POST /api/appointments/email`
 
-Si Resend falla o no está configurado, la cita no se borra y el flujo de
-WhatsApp sigue funcionando.
+Comportamiento:
 
-## Crear usuario admin
+- Si faltan `RESEND_API_KEY` o `ADMIN_EMAIL`, responde controlado (503).
+- El formulario muestra mensaje discreto, sin romper reserva.
+- Admin siempre se intenta notificar.
+- Cliente recibe correo si registro email.
 
-1. En Supabase, ve a Authentication.
-2. Crea un usuario con email y password.
-3. Usa esas credenciales en `/admin/login`.
-4. Antes de producción, restringe las policies a usuarios admin reales si no
-   quieres que cualquier usuario autenticado administre datos.
+## Upload de fotos en adopciones
 
-## Modo Revisión local
+- Desde `/admin/adopciones`.
+- Sube archivo a `adoption-pets`.
+- Guarda URL publica en `pets_for_adoption.image_url`.
+- Tipos: PNG/JPG/WebP.
+- Limite recomendado: 5 MB.
 
-El panel tiene un modo "Revisión local" para revisar la interfaz sin configurar
-Auth todavía. Este modo solo desbloquea visualmente el admin en el navegador.
-Las escrituras reales siguen dependiendo de Supabase y sus policies.
+## Preparacion para deploy en Vercel
 
-Antes de producción, considera remover este modo o protegerlo con una variable
-de entorno si no quieres exponer una vista de revisión.
+1. Sube repo a Git provider.
+2. Crea proyecto en Vercel.
+3. Configura todas las variables de entorno.
+4. Ejecuta SQL de `docs/supabase-policies.md` en Supabase.
+5. Crea bucket `adoption-pets` y valida policies de Storage.
+6. Verifica build en Vercel.
 
-## Deploy en Vercel
+## WhatsApp automatico (pendiente)
 
-1. Sube el repo a GitHub/GitLab/Bitbucket.
-2. Crea un proyecto en Vercel.
-3. Configura las variables:
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - `NEXT_PUBLIC_WHATSAPP_NUMBER` opcional
-   - `NEXT_PUBLIC_SITE_URL`
-   - `RESEND_API_KEY`
-   - `ADMIN_EMAIL`
-   - `RESEND_FROM_EMAIL` opcional
-4. Ejecuta el SQL de `docs/supabase-policies.md` en Supabase.
-5. Crea el bucket público `adoption-pets` en Supabase Storage.
-6. Verifica `npm run build` en Vercel.
+El proyecto hoy usa `wa.me` y acciones manuales para WhatsApp.
 
-No necesitas secret keys para esta versión.
+Para automatizar notificaciones reales se requiere integrar:
 
-## Pendientes para producción
+- WhatsApp Business API (Meta Cloud API) o Twilio.
 
-- Definir políticas de admin más estrictas por rol o allowlist.
-- Revisar textos finales, teléfono, email y redes reales.
-- Cargar servicios y mascotas reales en Supabase.
-- Crear bucket `adoption-pets` y probar upload desde un usuario admin.
-- Verificar dominio/remitente de Resend para producción.
-- Decidir si el modo "Revisión local" se elimina o se protege.
-- Configurar dominio y metadata social final.
+No hay envio automatico real mientras esa integracion no exista.

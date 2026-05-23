@@ -62,8 +62,8 @@ export type Service = {
 export type ServiceInput = Omit<Service, "id" | "created_at">;
 
 export type AdminStats = {
-  totalAppointments: number;
   newAppointments: number;
+  confirmedToday: number;
+  upcomingAppointments: number;
   availableAdoptions: number;
-  activeServices: number;
 };
