@@ -8,9 +8,9 @@ export const metadata: Metadata = {
   description:
     "Reserva citas veterinarias, estetica canina, vacunacion y procesos de adopcion con cuidado humano.",
   icons: {
-    icon: "/paw-favicon.svg",
-    shortcut: "/paw-favicon.svg",
-    apple: "/paw-favicon.svg",
+    icon: "/paw-favicon.png",
+    shortcut: "/paw-favicon.png",
+    apple: "/paw-favicon.png",
   },
 };
 

@@ -6,8 +6,6 @@ import {
   CalendarDays,
   CheckCircle2,
   Loader2,
-  MailCheck,
-  MessageCircle,
   Send,
 } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
@@ -198,25 +196,6 @@ export function AppointmentForm() {
       setValue("preferred_time", "", { shouldValidate: true });
     }
   }, [bookedSet, selectedTime, setValue]);
-
-  const whatsappUrl = useMemo(() => {
-    const message = [
-      `Hola, quiero reservar una cita en ${brand.name}.`,
-      watchedValues.client_name ? `Mi nombre es ${watchedValues.client_name}.` : "",
-      watchedValues.pet_name ? `Mi mascota se llama ${watchedValues.pet_name}.` : "",
-      watchedValues.service ? `Servicio: ${watchedValues.service}.` : "",
-      watchedValues.preferred_date
-        ? `Fecha preferida: ${watchedValues.preferred_date}.`
-        : "",
-      watchedValues.preferred_time
-        ? `Hora preferida: ${watchedValues.preferred_time}.`
-        : "",
-    ]
-      .filter(Boolean)
-      .join(" ");
-
-    return buildWhatsAppUrl(undefined, message);
-  }, [watchedValues]);
 
   async function onSubmit(values: AppointmentFormValues) {
     const normalizedPhone = values.phone?.trim() || "";
@@ -422,7 +401,7 @@ export function AppointmentForm() {
         </Field>
       </div>
 
-      <div className="mt-6 grid gap-3 sm:grid-cols-[1fr_auto]">
+      <div className="mt-6 grid gap-3">
         <Button
           type="submit"
           disabled={isSubmitting}
@@ -435,69 +414,19 @@ export function AppointmentForm() {
           )}
           {isSubmitting ? "Guardando..." : "Enviar solicitud"}
         </Button>
-        <ChannelSecondaryAction
-          channel={selectedChannel}
-          whatsappUrl={whatsappUrl}
-          emailValue={watchedValues.email?.trim() || ""}
-        />
+        <p className="text-xs leading-5 text-[#7B6A80]">
+          Tu cita se registra primero. Despues te mostraremos el siguiente paso
+          por {selectedChannel === "email"
+            ? "correo"
+            : selectedChannel === "telefono"
+              ? "llamada"
+              : "WhatsApp"}
+          .
+        </p>
       </div>
 
       {submitSummary ? <ConfirmationBox summary={submitSummary} /> : null}
     </form>
-  );
-}
-
-function ChannelSecondaryAction({
-  channel,
-  whatsappUrl,
-  emailValue,
-}: {
-  channel: ContactChannel;
-  whatsappUrl: string;
-  emailValue: string;
-}) {
-  if (channel === "email") {
-    return (
-      <Button
-        type="button"
-        variant="outline"
-        disabled={!emailValue}
-        className="h-12 rounded-full border-[#E8D6DE] bg-white text-[#5B3A63] hover:bg-[#FFF6F8]"
-      >
-        <MailCheck className="size-4" />
-        Confirmacion por email
-      </Button>
-    );
-  }
-
-  if (channel === "telefono") {
-    return (
-      <Button
-        type="button"
-        asChild
-        variant="outline"
-        className="h-12 rounded-full border-[#E8D6DE] bg-white text-[#5B3A63] hover:bg-[#FFF6F8]"
-      >
-        <a href={whatsappUrl} target="_blank" rel="noreferrer">
-          <MessageCircle className="size-4" />
-          WhatsApp opcional
-        </a>
-      </Button>
-    );
-  }
-
-  return (
-    <Button
-      type="button"
-      asChild
-      variant="outline"
-      className="h-12 rounded-full border-[#E8D6DE] bg-white text-[#5B3A63] hover:bg-[#FFF6F8]"
-    >
-      <a href={whatsappUrl} target="_blank" rel="noreferrer">
-        <MessageCircle className="size-4" />
-        Continuar por WhatsApp
-      </a>
-    </Button>
   );
 }
 
@@ -522,9 +451,9 @@ function ConfirmationBox({ summary }: { summary: SubmitSummary }) {
           href={summary.whatsappUrl}
           target="_blank"
           rel="noreferrer"
-          className="mt-3 inline-flex font-semibold text-[#A7353F] underline-offset-4 hover:underline"
+          className="mt-3 inline-flex rounded-full bg-[#A7353F] px-4 py-2 font-semibold text-[#FFFDFB] shadow-md shadow-[#A7353F]/20 hover:bg-[#8E2D36]"
         >
-          Continuar conversacion
+          Continuar por WhatsApp
         </a>
       ) : null}
       {summary.channel === "email" && summary.emailProvided ? (
