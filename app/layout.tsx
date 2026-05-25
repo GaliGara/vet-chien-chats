@@ -6,7 +6,12 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Chiens et Chats | Veterinaria boutique y adopciones",
   description:
-    "Reserva citas veterinarias, estética canina, vacunación y procesos de adopción con cuidado humano.",
+    "Reserva citas veterinarias, estetica canina, vacunacion y procesos de adopcion con cuidado humano.",
+  icons: {
+    icon: "/paw-favicon.svg",
+    shortcut: "/paw-favicon.svg",
+    apple: "/paw-favicon.svg",
+  },
 };
 
 const fontVariables = {

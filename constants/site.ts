@@ -96,6 +96,42 @@ export const testimonials = [
     name: "Valeria R.",
     role: "Cliente recurrente",
   },
+  {
+    quote:
+      "Desde la primera consulta nos explicaron todo con calma. Se nota el amor por los animales y el profesionalismo del equipo.",
+    name: "Claudia M.",
+    role: "Tutora de Milo",
+  },
+  {
+    quote:
+      "El proceso de vacunacion fue ordenado, puntual y muy claro. Siempre sentimos acompanamiento real.",
+    name: "Rodrigo P.",
+    role: "Tutor de Kira",
+  },
+  {
+    quote:
+      "Adoptar con ustedes fue una experiencia segura y muy humana. Nos guiaron paso a paso con muchisima paciencia.",
+    name: "Lucia y Fernanda",
+    role: "Familia adoptante",
+  },
+  {
+    quote:
+      "La estetica de mi perrita quedo hermosa y sin estres. Cuidaron cada detalle, desde la recepcion hasta la entrega.",
+    name: "Daniela S.",
+    role: "Tutora de Moka",
+  },
+  {
+    quote:
+      "Lo que mas valoro es la comunicacion: siempre supimos que seguia y como continuar. El trato es impecable.",
+    name: "Hector R.",
+    role: "Cliente recurrente",
+  },
+  {
+    quote:
+      "Se siente un servicio boutique de verdad: elegante, calido y con un enfoque medico muy confiable.",
+    name: "Paola T.",
+    role: "Tutora de Bruno y Miel",
+  },
 ];
 
 export const fallbackServices: Service[] = [
